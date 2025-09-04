@@ -1,0 +1,543 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222.2 84% 4.9%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222.2 84% 4.9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
+    --radius: 0.5rem;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    /* Material Design 3 surface tokens */
+    --surface: 0 0% 100%;
+    --surface-variant: 25 10% 96%;
+    --surface-container: 25 8% 98%;
+    --surface-container-low: 25 5% 99%;
+    --surface-container-high: 25 12% 95%;
+    --surface-container-highest: 25 15% 93%;
+    --outline: 25 8% 75%;
+    --outline-variant: 25 5% 85%;
+
+    /* Enhanced color tokens */
+    --success: 142 76% 36%;
+    --success-foreground: 355 7% 97%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 48 96% 89%;
+    --info: 221 83% 53%;
+    --info-foreground: 210 40% 98%;
+
+    /* Z-index scale */
+    --z-dropdown: 1000;
+    --z-sticky: 1020;
+    --z-fixed: 1030;
+    --z-modal-backdrop: 1040;
+    --z-modal: 1050;
+    --z-popover: 1060;
+    --z-tooltip: 1070;
+    --z-toast: 1080;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 84% 4.9%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 224.3 76.3% 94.1%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+    /* Dark mode surface tokens */
+    --surface: 20 14.3% 4.1%;
+    --surface-variant: 25 10% 8%;
+    --surface-container: 25 8% 6%;
+    --surface-container-low: 25 5% 4%;
+    --surface-container-high: 25 12% 10%;
+    --surface-container-highest: 25 15% 14%;
+    --outline: 25 8% 40%;
+    --outline-variant: 25 5% 25%;
+
+    /* Enhanced dark mode colors */
+    --success: 142 76% 50%;
+    --success-foreground: 142 76% 10%;
+    --warning: 38 92% 60%;
+    --warning-foreground: 38 92% 10%;
+    --info: 221 83% 65%;
+    --info-foreground: 221 83% 10%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    /* iOS specific optimizations */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Prevent zoom on iOS */
+    -webkit-text-size-adjust: 100%;
+    /* Better touch handling */
+    -webkit-tap-highlight-color: transparent;
+    /* Prevent horizontal scroll */
+    overflow-x: hidden;
+  }
+
+  /* iOS safe area support */
+  .safe-area-top {
+    padding-top: max(env(safe-area-inset-top), 0px);
+  }
+
+  .safe-area-bottom {
+    padding-bottom: max(env(safe-area-inset-bottom), 0px);
+  }
+
+  .safe-area-left {
+    padding-left: max(env(safe-area-inset-left), 0px);
+  }
+
+  .safe-area-right {
+    padding-right: max(env(safe-area-inset-right), 0px);
+  }
+
+  /* iOS specific input fixes */
+  input,
+  textarea,
+  select {
+    /* Prevent zoom on focus in iOS */
+    font-size: 16px;
+    @apply text-sm md:text-base;
+  }
+
+  /* Better button touch targets for iOS */
+  button,
+  [role="button"],
+  [type="button"],
+  [type="submit"] {
+    min-height: 44px;
+    min-width: 44px;
+    touch-action: manipulation;
+  }
+
+  /* Consistent icon sizing system */
+  .icon-xs {
+    @apply w-3 h-3 flex-shrink-0;
+  }
+
+  .icon-sm {
+    @apply w-4 h-4 flex-shrink-0;
+  }
+
+  .icon-md {
+    @apply w-5 h-5 flex-shrink-0;
+  }
+
+  .icon-lg {
+    @apply w-6 h-6 flex-shrink-0;
+  }
+
+  .icon-xl {
+    @apply w-8 h-8 flex-shrink-0;
+  }
+
+  .icon-2xl {
+    @apply w-10 h-10 flex-shrink-0;
+  }
+
+  /* Z-index utilities */
+  .z-dropdown {
+    z-index: var(--z-dropdown);
+  }
+
+  .z-sticky {
+    z-index: var(--z-sticky);
+  }
+
+  .z-fixed {
+    z-index: var(--z-fixed);
+  }
+
+  .z-modal-backdrop {
+    z-index: var(--z-modal-backdrop);
+  }
+
+  .z-modal {
+    z-index: var(--z-modal);
+  }
+
+  .z-popover {
+    z-index: var(--z-popover);
+  }
+
+  .z-tooltip {
+    z-index: var(--z-tooltip);
+  }
+
+  .z-toast {
+    z-index: var(--z-toast);
+  }
+}
+
+/* Custom scrollbar with Material Design 3 styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Material Design 3 motion */
+* {
+  transition:
+    background-color 0.2s cubic-bezier(0.2, 0, 0, 1),
+    border-color 0.2s cubic-bezier(0.2, 0, 0, 1),
+    color 0.2s cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 0.2s cubic-bezier(0.2, 0, 0, 1),
+    transform 0.2s cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Focus styles with Material Design 3 */
+.focus-visible {
+  @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
+}
+
+/* Material Design 3 elevation classes */
+.elevation-0 {
+  box-shadow: none;
+}
+
+.elevation-1 {
+  box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.3), 0px 1px 3px 1px rgba(0, 0, 0, 0.15);
+}
+
+.elevation-2 {
+  box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.3), 0px 2px 6px 2px rgba(0, 0, 0, 0.15);
+}
+
+.elevation-3 {
+  box-shadow: 0px 1px 3px 0px rgba(0, 0, 0, 0.3), 0px 4px 8px 3px rgba(0, 0, 0, 0.15);
+}
+
+.elevation-4 {
+  box-shadow: 0px 2px 3px 0px rgba(0, 0, 0, 0.3), 0px 6px 10px 4px rgba(0, 0, 0, 0.15);
+}
+
+.elevation-5 {
+  box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.3), 0px 8px 12px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* Material Design 3 surface styles */
+.surface {
+  background-color: hsl(var(--surface));
+  color: hsl(var(--foreground));
+}
+
+.surface-variant {
+  background-color: hsl(var(--surface-variant));
+  color: hsl(var(--foreground));
+}
+
+.surface-container {
+  background-color: hsl(var(--surface-container));
+  color: hsl(var(--foreground));
+}
+
+.surface-container-low {
+  background-color: hsl(var(--surface-container-low));
+  color: hsl(var(--foreground));
+}
+
+.surface-container-high {
+  background-color: hsl(var(--surface-container-high));
+  color: hsl(var(--foreground));
+}
+
+.surface-container-highest {
+  background-color: hsl(var(--surface-container-highest));
+  color: hsl(var(--foreground));
+}
+
+/* Material Design 3 state layers */
+.state-layer {
+  position: relative;
+  overflow: hidden;
+}
+
+.state-layer::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity 0.2s cubic-bezier(0.2, 0, 0, 1);
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.state-layer:hover::before {
+  opacity: 0.08;
+}
+
+.state-layer:focus::before {
+  opacity: 0.12;
+}
+
+.state-layer:active::before {
+  opacity: 0.16;
+}
+
+/* Status color utilities */
+.text-success {
+  color: hsl(var(--success));
+}
+
+.bg-success {
+  background-color: hsl(var(--success));
+}
+
+.text-success-foreground {
+  color: hsl(var(--success-foreground));
+}
+
+.bg-success-foreground {
+  background-color: hsl(var(--success-foreground));
+}
+
+.text-warning {
+  color: hsl(var(--warning));
+}
+
+.bg-warning {
+  background-color: hsl(var(--warning));
+}
+
+.text-warning-foreground {
+  color: hsl(var(--warning-foreground));
+}
+
+.bg-warning-foreground {
+  background-color: hsl(var(--warning-foreground));
+}
+
+.text-info {
+  color: hsl(var(--info));
+}
+
+.bg-info {
+  background-color: hsl(var(--info));
+}
+
+.text-info-foreground {
+  color: hsl(var(--info-foreground));
+}
+
+.bg-info-foreground {
+  background-color: hsl(var(--info-foreground));
+}
+
+/* Responsive utilities */
+.container-responsive {
+  @apply w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+}
+
+.grid-responsive {
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6;
+}
+
+.flex-responsive {
+  @apply flex flex-col sm:flex-row gap-4;
+}
+
+/* Consistent spacing system */
+.spacing-xs {
+  @apply p-2;
+}
+
+.spacing-sm {
+  @apply p-3;
+}
+
+.spacing-md {
+  @apply p-4;
+}
+
+.spacing-lg {
+  @apply p-6;
+}
+
+.spacing-xl {
+  @apply p-8;
+}
+
+/* iOS specific fixes */
+@supports (-webkit-touch-callout: none) {
+  /* iOS Safari specific styles */
+  .ios-fix {
+    -webkit-appearance: none;
+    -webkit-border-radius: 0;
+  }
+
+  /* Fix for iOS input styling */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="search"],
+  input[type="date"],
+  textarea,
+  select {
+    -webkit-appearance: none;
+    -webkit-border-radius: 0;
+    border-radius: var(--radius);
+    background-clip: padding-box;
+  }
+
+  /* Fix for iOS button styling */
+  button,
+  input[type="button"],
+  input[type="submit"] {
+    -webkit-appearance: none;
+    -webkit-border-radius: 0;
+    border-radius: var(--radius);
+    cursor: pointer;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --border: 0 0% 20%;
+    --outline: 0 0% 30%;
+  }
+
+  .dark {
+    --border: 0 0% 80%;
+    --outline: 0 0% 70%;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  * {
+    background: transparent !important;
+    color: black !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+}
+
+/* Mobile-first responsive breakpoints */
+@media (max-width: 640px) {
+  .mobile-stack {
+    @apply flex-col space-y-2 space-x-0;
+  }
+
+  .mobile-full {
+    @apply w-full;
+  }
+
+  .mobile-hidden {
+    @apply hidden;
+  }
+}
+
+@media (min-width: 768px) {
+  .tablet-show {
+    @apply block;
+  }
+}
+
+@media (min-width: 1024px) {
+  .desktop-show {
+    @apply block;
+  }
+}
+
+/* Loading animation */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Smooth transitions */
+* {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
