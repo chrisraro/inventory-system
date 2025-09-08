@@ -13,7 +13,6 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { TrendingUp, TrendingDown, Package, Calendar, Search, QrCode, Scan } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { supabase, getStockMovements, getProducts } from "@/lib/supabase"
 import { useAuth } from "@/contexts/auth-context"
 import ProtectedRoute from "@/components/auth/protected-route"
 import DashboardLayout from "@/components/layout/dashboard-layout"
@@ -23,11 +22,14 @@ interface Product {
   id: string
   name: string
   brand: string
-  category?: string
+  weight_kg?: number
+  qr_code?: string
   current_stock: number
   unit_type: string
   unit_cost?: number
-  selling_price?: number
+  // UI compatibility fields
+  quantity?: number
+  category?: string
 }
 
 interface StockMovement {
@@ -82,9 +84,12 @@ export default function StockMovementsPage() {
 
   const fetchProducts = async () => {
     try {
-      const { data, error } = await getProducts()
-      if (error) throw error
-      setProducts(data || [])
+      const response = await fetch('/api/products/list')
+      if (!response.ok) {
+        throw new Error('Failed to fetch products')
+      }
+      const { products } = await response.json()
+      setProducts(products || [])
     } catch (error) {
       console.error("Error fetching products:", error)
       toast({
@@ -97,9 +102,12 @@ export default function StockMovementsPage() {
 
   const fetchMovements = async () => {
     try {
-      const { data, error } = await getStockMovements()
-      if (error) throw error
-      setMovements(data || [])
+      const response = await fetch('/api/stock-movements')
+      if (!response.ok) {
+        throw new Error('Failed to fetch movements')
+      }
+      const { movements } = await response.json()
+      setMovements(movements || [])
     } catch (error) {
       console.error("Error fetching movements:", error)
       toast({
@@ -164,21 +172,25 @@ export default function StockMovementsPage() {
     setIsSubmitting(true)
 
     try {
-      // Create movement record
-      const movementData = {
-        product_id: formData.product_id,
-        // Map UI values to schema-compatible values ('in'|'out'|'adjustment' -> 'incoming'|'outgoing'|'adjustment')
-        movement_type: formData.movement_type === "in" ? "incoming" : formData.movement_type === "out" ? "outgoing" : "adjustment",
-        quantity: quantity,
-        reason: formData.reason,
-        notes: formData.notes || null,
-        created_by: user?.id,
+      // Create movement record using new API
+      const response = await fetch('/api/stock-movements', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          product_id: formData.product_id,
+          movement_type: formData.movement_type,
+          quantity: quantity,
+          reason: formData.reason,
+          notes: formData.notes || null,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to create movement')
       }
-
-      const { error: movementError } = await supabase.from("stock_movements").insert([movementData])
-
-      if (movementError) throw movementError
-      // No manual stock update necessary; trigger applies change
 
       toast({
         title: "Success",
@@ -322,7 +334,7 @@ export default function StockMovementsPage() {
                             </p>
                             <p>
                               Cost: ₱{selectedProduct.unit_cost?.toFixed(2) || '0.00'} | Selling: ₱
-                              {selectedProduct.selling_price?.toFixed(2) || '0.00'}
+                              {selectedProduct.unit_cost?.toFixed(2) || '0.00'}
                             </p>
                           </div>
                         </div>

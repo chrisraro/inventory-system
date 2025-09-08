@@ -26,7 +26,6 @@ interface DashboardLayoutProps {
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home, permission: "view_dashboard" },
   { name: "Add Product", href: "/add-item", icon: Plus, permission: "add_product" },
-  { name: "QR Codes", href: "/qr-codes", icon: QrCode, permission: "add_product" },
   { name: "QR Scanner", href: "/qr-scanner", icon: Scan, permission: "add_product" },
   { name: "Stock Movements", href: "/stock-movements", icon: TrendingUp, permission: "stock_movements" },
   { name: "Reports", href: "/reports", icon: BarChart3, permission: "view_reports" },

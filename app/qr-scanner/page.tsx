@@ -4,18 +4,25 @@ import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Camera, CameraOff, ArrowLeft } from "lucide-react"
+import { Camera, CameraOff, ArrowLeft, Plus, Package, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import DashboardLayout from "@/components/layout/dashboard-layout"
 import ProtectedRoute from "@/components/auth/protected-route"
 import jsQR from "jsqr"
+import { Badge } from "@/components/ui/badge"
 
 export default function QRScannerPage() {
   const router = useRouter()
   const [isActive, setIsActive] = useState(false)
   const [isScanning, setIsScanning] = useState(false)
   const [manualInput, setManualInput] = useState("")
+  const [scanResult, setScanResult] = useState<{
+    qrCode: string
+    productId: string
+    product?: any
+    exists: boolean
+  } | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -122,9 +129,12 @@ export default function QRScannerPage() {
     }
   }
 
-  const handleQRDetected = (qrData: string) => {
+  const handleQRDetected = async (qrData: string) => {
     console.log("QR Code detected:", qrData)
-    toast.success(`QR Code found: ${qrData}`)
+    
+    // Clean the QR data and generate product ID
+    const cleanQRData = qrData.trim().toUpperCase().replace('LPG-', '')
+    const productId = `LPG-${cleanQRData}`
     
     // Stop scanning after detection
     if (scanIntervalRef.current) {
@@ -133,15 +143,58 @@ export default function QRScannerPage() {
       setIsScanning(false)
     }
     
-    // Set the detected QR code in the manual input field
-    setManualInput(qrData)
+    toast.success(`QR Code found: ${qrData}`)
+    
+    try {
+      // Check if product exists in database
+      const response = await fetch(`/api/products/check-qr?qr=${encodeURIComponent(cleanQRData)}`)
+      const data = await response.json()
+      
+      setScanResult({
+        qrCode: cleanQRData,
+        productId: productId,
+        product: data.product,
+        exists: data.exists
+      })
+      
+      // Set the QR code in manual input for reference
+      setManualInput(cleanQRData)
+      
+    } catch (error) {
+      console.error('Error checking product:', error)
+      toast.error('Failed to check product in database')
+      
+      // Still show the QR result even if API fails
+      setScanResult({
+        qrCode: cleanQRData,
+        productId: productId,
+        exists: false
+      })
+      setManualInput(cleanQRData)
+    }
   }
 
-  const handleManualInput = (e: React.FormEvent) => {
+  const handleManualInput = async (e: React.FormEvent) => {
     e.preventDefault()
     if (manualInput.trim()) {
-      toast.success(`QR Code: ${manualInput}`)
-      setManualInput("")
+      await handleQRDetected(manualInput.trim())
+    }
+  }
+
+  const resetScanner = () => {
+    setScanResult(null)
+    setManualInput("")
+  }
+
+  const navigateToAddProduct = () => {
+    if (scanResult) {
+      router.push(`/add-item?qr=${encodeURIComponent(scanResult.qrCode)}`)
+    }
+  }
+
+  const navigateToEditProduct = () => {
+    if (scanResult?.product?.id) {
+      router.push(`/edit-item/${scanResult.product.id}`)
     }
   }
 
@@ -256,6 +309,69 @@ export default function QRScannerPage() {
               </form>
             </CardContent>
           </Card>
+
+          {/* Scan Result */}
+          {scanResult && (
+            <Card className={`border-2 ${scanResult.exists ? 'border-green-200 bg-green-50' : 'border-orange-200 bg-orange-50'}`}>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span className={scanResult.exists ? 'text-green-900' : 'text-orange-900'}>
+                    {scanResult.exists ? 'Product Found' : 'Product Not Found'}
+                  </span>
+                  <Button variant="ghost" size="sm" onClick={resetScanner}>
+                    <ArrowLeft className="h-4 w-4" />
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">QR Code:</span>
+                    <Badge variant="secondary">{scanResult.qrCode}</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Product ID:</span>
+                    <Badge variant="outline">{scanResult.productId}</Badge>
+                  </div>
+                </div>
+
+                {scanResult.exists && scanResult.product ? (
+                  <div className="space-y-4">
+                    <div className="bg-white p-4 rounded-lg border">
+                      <h3 className="font-semibold text-lg text-green-900">{scanResult.product.name}</h3>
+                      <p className="text-gray-600">{scanResult.product.brand}</p>
+                      <p className="text-gray-600">{scanResult.product.weight_kg}kg {scanResult.product.unit_type}</p>
+                      <p className="text-gray-600">Stock: {scanResult.product.current_stock}</p>
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button onClick={navigateToEditProduct} className="flex-1 bg-green-600 hover:bg-green-700">
+                        <Package className="h-4 w-4 mr-2" />
+                        View/Edit Product
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="bg-white p-4 rounded-lg border border-orange-200">
+                      <div className="flex items-center space-x-2">
+                        <AlertCircle className="h-5 w-5 text-orange-600" />
+                        <p className="text-orange-800 font-medium">This product is not in the database</p>
+                      </div>
+                      <p className="text-gray-600 mt-2">Would you like to add it as a new product?</p>
+                    </div>
+                    <Button onClick={navigateToAddProduct} className="w-full bg-orange-600 hover:bg-orange-700">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add New Product
+                    </Button>
+                  </div>
+                )}
+
+                <Button onClick={resetScanner} variant="outline" className="w-full">
+                  Scan Another QR Code
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Demo Codes */}
           <Card>

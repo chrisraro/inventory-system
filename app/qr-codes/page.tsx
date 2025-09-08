@@ -21,28 +21,14 @@ import { QRCodeSVG } from "qrcode.react"
 export default function QRCodesPage() {
   const { user } = useAuth()
   const router = useRouter()
-  const { qrCodes, loading, generateQRCode, removeQRCode, fetchAllQRCodes } = useQRCodes()
+  const { qrCodes, loading, removeQRCode, fetchAllQRCodes } = useQRCodes()
   const { products } = useProducts()
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedProduct, setSelectedProduct] = useState<string>("")
-  const [showGenerator, setShowGenerator] = useState(false)
   const [showExporter, setShowExporter] = useState(false)
 
   useEffect(() => {
     fetchAllQRCodes()
   }, [])
-
-  const handleGenerateQR = async (productId: string) => {
-    const product = products.find((p) => p.id === productId)
-    if (!product) return
-
-    await generateQRCode(productId, {
-      name: product.name,
-      brand: product.brand,
-      category: product.category,
-    })
-    setShowGenerator(false)
-  }
 
   const handleDeleteQR = async (qrId: string) => {
     // TODO: Replace with proper confirmation dialog
@@ -78,13 +64,11 @@ export default function QRCodesPage() {
   const filteredQRCodes = qrCodes.filter((qr) => {
     const productName = qr.products?.name?.toLowerCase() || ""
     const productBrand = qr.products?.brand?.toLowerCase() || ""
-    const productCategory = qr.products?.category?.toLowerCase() || ""
+    const qrData = qr.qr_data?.toLowerCase() || ""
     const search = searchTerm.toLowerCase()
 
-    return productName.includes(search) || productBrand.includes(search) || productCategory.includes(search)
+    return productName.includes(search) || productBrand.includes(search) || qrData.includes(search)
   })
-
-  const availableProducts = products.filter((product) => !qrCodes.some((qr) => qr.product_id === product.id))
 
   return (
     <ProtectedRoute permission="add_product">
@@ -93,66 +77,30 @@ export default function QRCodesPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">QR Code Management</h1>
-              <p className="text-gray-600">Generate, manage, and export QR codes for your products</p>
+              <p className="text-gray-600">Scan QR codes to add products or view existing QR-based products</p>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => router.push('/qr-scanner')}>
+              <Button onClick={() => router.push('/qr-scanner')}>
                 <Scan className="h-4 w-4 mr-2" />
-                Scan QR
+                Scan QR Code
               </Button>
 
-              <Dialog open={showExporter} onOpenChange={setShowExporter}>
-                <DialogTrigger asChild>
-                  <Button variant="outline">
-                    <FileDown className="h-4 w-4 mr-2" />
-                    Export PDF
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-2xl">
-                  <DialogHeader>
-                    <DialogTitle>Export QR Codes to PDF</DialogTitle>
-                  </DialogHeader>
-                  <QRPDFExport qrCodes={qrCodes} />
-                </DialogContent>
-              </Dialog>
-
-              <Dialog open={showGenerator} onOpenChange={setShowGenerator}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Generate QR
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Generate QR Code</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-sm font-medium">Select Product</label>
-                      <select
-                        value={selectedProduct}
-                        onChange={(e) => setSelectedProduct(e.target.value)}
-                        className="w-full mt-1 p-2 border rounded-md"
-                      >
-                        <option value="">Choose a product...</option>
-                        {availableProducts.map((product) => (
-                          <option key={product.id} value={product.id}>
-                            {product.name} - {product.brand}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <Button
-                      onClick={() => selectedProduct && handleGenerateQR(selectedProduct)}
-                      disabled={!selectedProduct}
-                      className="w-full"
-                    >
-                      Generate QR Code
+              {qrCodes.length > 0 && (
+                <Dialog open={showExporter} onOpenChange={setShowExporter}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline">
+                      <FileDown className="h-4 w-4 mr-2" />
+                      Export PDF
                     </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-2xl">
+                    <DialogHeader>
+                      <DialogTitle>Export QR Codes to PDF</DialogTitle>
+                    </DialogHeader>
+                    <QRPDFExport qrCodes={qrCodes} onClose={() => setShowExporter(false)} />
+                  </DialogContent>
+                </Dialog>
+              )}
             </div>
           </div>
 
@@ -185,12 +133,12 @@ export default function QRCodesPage() {
                   <QrCode className="h-12 w-12 mx-auto text-gray-400 mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No QR codes found</h3>
                   <p className="text-gray-600 mb-4">
-                    {searchTerm ? "No QR codes match your search." : "Start by generating QR codes for your products."}
+                    {searchTerm ? "No QR codes match your search." : "Scan QR codes to add products to your inventory."}
                   </p>
                   {!searchTerm && (
-                    <Button onClick={() => setShowGenerator(true)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Generate First QR Code
+                    <Button onClick={() => router.push('/qr-scanner')}>
+                      <Scan className="h-4 w-4 mr-2" />
+                      Start Scanning
                     </Button>
                   )}
                 </div>
@@ -213,7 +161,7 @@ export default function QRCodesPage() {
                           </Button>
                         </div>
                         <p className="text-xs text-gray-600">
-                          {qrCode.products?.brand} • {qrCode.products?.category}
+                          {qrCode.products?.brand} • {qrCode.products?.weight_kg}kg
                         </p>
                       </CardHeader>
                       <CardContent className="space-y-3">
@@ -250,7 +198,7 @@ export default function QRCodesPage() {
                   <QrCode className="h-12 w-12 mx-auto text-gray-400 mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No QR codes found</h3>
                   <p className="text-gray-600">
-                    {searchTerm ? "No QR codes match your search." : "Start by generating QR codes for your products."}
+                    {searchTerm ? "No QR codes match your search." : "Scan QR codes to add products to your inventory."}
                   </p>
                 </div>
               ) : (
@@ -268,7 +216,7 @@ export default function QRCodesPage() {
                                 {qrCode.products?.name || "Unknown Product"}
                               </h3>
                               <p className="text-sm text-gray-600">
-                                {qrCode.products?.brand} • {qrCode.products?.category}
+                                {qrCode.products?.brand} • {qrCode.products?.weight_kg}kg
                               </p>
                               <p className="text-xs text-gray-500">
                                 Created: {new Date(qrCode.created_at).toLocaleDateString()}

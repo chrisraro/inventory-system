@@ -2,8 +2,8 @@
 
 import type React from "react"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -27,10 +27,11 @@ import { cn } from "@/lib/utils"
 
 export default function AddItemPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
-  const [generateQR, setGenerateQR] = useState(false)
   const [expirationDate, setExpirationDate] = useState<Date>()
+  const [qrCodeFromUrl, setQrCodeFromUrl] = useState<string | null>(null)
 
   const [formData, setFormData] = useState({
     weight_kg: "",
@@ -43,6 +44,14 @@ export default function AddItemPage() {
     location: "",
     notes: "",
   })
+
+  // Handle QR code from URL parameters
+  useEffect(() => {
+    const qrParam = searchParams.get('qr')
+    if (qrParam) {
+      setQrCodeFromUrl(qrParam)
+    }
+  }, [searchParams])
 
   const handleWeightChange = (weight: string) => {
     const weightValue = Number.parseFloat(weight)
@@ -71,41 +80,46 @@ export default function AddItemPage() {
         return
       }
 
-      // Create product
+      // Create product with QR-based ID
+      const qrCode = qrCodeFromUrl || ""
+      const productId = qrCode ? `LPG-${qrCode.toUpperCase().replace('LPG-', '')}` : undefined
+      
       const productData = {
+        id: productId, // Use QR-based ID if available
+        qr_code: qrCode, // Store raw QR code
         name: "LPG Cylinder",
         brand: formData.brand,
         weight_kg: Number.parseFloat(formData.weight_kg),
-        unit_type: "kg", // Required field - LPG cylinders are measured in kg
-        unit_cost: Number.parseFloat(formData.unit_cost), // Database expects unit_cost
-        quantity: Number.parseInt(formData.quantity), // Will be mapped to current_stock in createProduct
+        unit_type: "cylinder",
+        category: "LPG",
+        unit_cost: Number.parseFloat(formData.unit_cost),
+        current_stock: Number.parseInt(formData.quantity),
         min_threshold: Number.parseInt(formData.minimum_stock) || getThresholdByWeight(Number.parseFloat(formData.weight_kg)),
         max_threshold: formData.maximum_stock ? Number.parseInt(formData.maximum_stock) : 100,
-        supplier: formData.supplier || undefined,
-        location: formData.location || undefined,
-        remarks: formData.notes || undefined,
-        expiration_date: expirationDate ? format(expirationDate, "yyyy-MM-dd") : undefined,
+        supplier_id: null, // Will be updated later if supplier system is implemented
+        expiry_date: expirationDate ? format(expirationDate, "yyyy-MM-dd") : null,
+        user_id: user?.id,
       }
 
-      const { data: product, error } = await createProduct(productData)
+      // Create product using new QR-based system
+      const response = await fetch('/api/products/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(productData),
+      })
 
-      if (error) {
-        console.error("Product creation error:", error)
-        throw new Error(`Failed to create product: ${error.message || 'Unknown error'}`)
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to create product')
       }
 
-      // Generate QR code if requested
-      if (generateQR && product) {
-        const qrData = await generateQRCodeData(product)
-        await createQRCode(product.id, qrData, {
-          weight_kg: product.weight_kg,
-          brand: product.brand,
-        })
-      }
+      const { product } = await response.json()
 
       toast({
         title: "Success",
-        description: `${formatWeight(productData.weight_kg)} ${productData.brand} LPG Cylinder added successfully${generateQR ? " with QR code" : ""}`,
+        description: `${formatWeight(productData.weight_kg)} ${productData.brand} LPG Cylinder added successfully${qrCodeFromUrl ? ` (ID: ${productId})` : ""}`,
       })
 
       router.push("/")
@@ -131,8 +145,15 @@ export default function AddItemPage() {
               <span>Back</span>
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Add LPG Cylinder</h1>
-              <p className="text-gray-600">Add a new LPG cylinder to your inventory</p>
+              <h1 className="text-2xl font-bold text-gray-900">
+                {qrCodeFromUrl ? "Add Scanned Product" : "Add LPG Cylinder"}
+              </h1>
+              <p className="text-gray-600">
+                {qrCodeFromUrl 
+                  ? `Create product from QR code: ${qrCodeFromUrl}` 
+                  : "Add a new LPG cylinder to your inventory"
+                }
+              </p>
             </div>
           </div>
 
@@ -312,27 +333,27 @@ export default function AddItemPage() {
                   </div>
                 </div>
 
-                <Separator />
-
-                {/* QR Code Generation */}
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="generateQR"
-                      checked={generateQR}
-                      onChange={(e) => setGenerateQR(e.target.checked)}
-                      className="rounded border-gray-300"
-                    />
-                    <Label htmlFor="generateQR" className="flex items-center space-x-2 cursor-pointer">
-                      <QrCode className="h-4 w-4" />
-                      <span>Generate QR Code</span>
-                    </Label>
-                  </div>
-                  <p className="text-sm text-gray-600">
-                    Generate a QR code for quick product identification and stock management
-                  </p>
-                </div>
+                {qrCodeFromUrl && (
+                  <>
+                    <Separator />
+                    
+                    {/* QR Code Information */}
+                    <div className="space-y-3 bg-green-50 p-4 rounded-lg border border-green-200">
+                      <div className="flex items-center space-x-2">
+                        <QrCode className="h-5 w-5 text-green-600" />
+                        <span className="font-medium text-green-900">QR Code Product</span>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-sm text-green-800">
+                          <strong>QR Code:</strong> {qrCodeFromUrl}
+                        </p>
+                        <p className="text-sm text-green-800">
+                          <strong>Product ID:</strong> LPG-{qrCodeFromUrl.toUpperCase().replace('LPG-', '')}
+                        </p>
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 {/* Submit Button */}
                 <div className="flex space-x-4 pt-4">
