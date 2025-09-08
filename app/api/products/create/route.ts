@@ -1,14 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+
+// Create a Supabase client with service role for API routes
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
 export async function POST(request: NextRequest) {
   try {
     const productData = await request.json()
 
-    // Check if user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // Get the authorization header
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized - No valid token' }, { status: 401 })
+    }
+
+    const token = authHeader.substring(7)
+    
+    // Verify the token and get user
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'Unauthorized - Invalid token' }, { status: 401 })
     }
 
     // Validate required fields for simplified system
@@ -21,7 +35,7 @@ export async function POST(request: NextRequest) {
     const productId = `LPG-${cleanQRCode}`
 
     // Check if product with this QR code already exists
-    const { data: existingProduct } = await supabase
+    const { data: existingProduct } = await supabaseAdmin
       .from('products_simplified')
       .select('id')
       .or(`qr_code.eq.${cleanQRCode},id.eq.${productId}`)
@@ -44,7 +58,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Insert into simplified products table
-    const { data: product, error } = await supabase
+    const { data: product, error } = await supabaseAdmin
       .from('products_simplified')
       .insert([simplifiedProduct])
       .select()

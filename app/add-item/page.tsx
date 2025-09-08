@@ -15,6 +15,7 @@ import { toast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/auth-context"
 import ProtectedRoute from "@/components/auth/protected-route"
 import DashboardLayout from "@/components/layout/dashboard-layout"
+import { authenticatedPost } from "@/lib/api-client"
 
 export default function AddItemPage() {
   const router = useRouter()
@@ -77,13 +78,7 @@ export default function AddItemPage() {
       }
 
       // Create product using new QR-based system
-      const response = await fetch('/api/products/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(productData),
-      })
+      const response = await authenticatedPost('/api/products/create', productData)
 
       if (response.status === 503) {
         const errorData = await response.json()

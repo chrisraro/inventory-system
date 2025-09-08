@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { authenticatedGet, authenticatedPost } from '@/lib/api-client'
 
 // Simplified Product interface for the new system
 interface Product {
@@ -47,7 +48,7 @@ export function useProducts(): UseProductsReturn {
     setError(null)
 
     try {
-      const response = await fetch('/api/products/list')
+      const response = await authenticatedGet('/api/products/list')
       
       if (!response.ok) {
         throw new Error('Failed to fetch products')
@@ -67,13 +68,7 @@ export function useProducts(): UseProductsReturn {
     productData: { qr_code: string; weight_kg: number; unit_cost: number; supplier?: string }
   ): Promise<{ success: boolean; error?: string }> => {
     try {
-      const response = await fetch('/api/products/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(productData),
-      })
+      const response = await authenticatedPost('/api/products/create', productData)
       
       if (!response.ok) {
         const errorData = await response.json()

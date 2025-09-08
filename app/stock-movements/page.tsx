@@ -19,6 +19,7 @@ import { useAuth } from "@/contexts/auth-context"
 import ProtectedRoute from "@/components/auth/protected-route"
 import DashboardLayout from "@/components/layout/dashboard-layout"
 import { useRouter } from "next/navigation"
+import { authenticatedGet, authenticatedPost } from "@/lib/api-client"
 
 interface Product {
   id: string
@@ -94,7 +95,7 @@ export default function StockMovementsPage() {
       if (filters.status && filters.status !== 'all') queryParams.set('status', filters.status)
       if (filters.weight && filters.weight !== 'all') queryParams.set('weight', filters.weight)
       
-      const response = await fetch(`/api/stock-movements/simplified?${queryParams}`)
+      const response = await authenticatedGet(`/api/stock-movements/simplified?${queryParams}`)
       
       if (response.status === 503) {
         const errorData = await response.json()
@@ -143,13 +144,7 @@ export default function StockMovementsPage() {
     setIsSubmitting(true)
 
     try {
-      const response = await fetch('/api/stock-movements/simplified', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      })
+      const response = await authenticatedPost('/api/stock-movements/simplified', formData)
 
       if (response.status === 503) {
         const errorData = await response.json()
