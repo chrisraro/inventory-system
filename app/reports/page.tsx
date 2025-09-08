@@ -15,28 +15,44 @@ import { formatCurrency } from "@/lib/currency"
 import { useProducts } from "@/hooks/use-products"
 
 interface ReportData {
-  totalProducts: number
+  totalCylinders: number
   totalValue: number
-  lowStockItems: number
-  outOfStockItems: number
+  availableCylinders: number
+  soldCylinders: number
+  maintenanceCylinders: number
+  damagedCylinders: number
+  missingCylinders: number
   recentActivity: Array<{
     id: string
-    name: string
+    cylinderId: string
     action: string
-    quantity_change: number
-    value_change: number
+    status: string
+    weight_kg: number
     date: string
   }>
+  weightDistribution: {
+    '11kg': number
+    '22kg': number
+    '50kg': number
+  }
 }
 
 export default function ReportsPage() {
   const { products, loading } = useProducts()
   const [reportData, setReportData] = useState<ReportData>({
-    totalProducts: 0,
+    totalCylinders: 0,
     totalValue: 0,
-    lowStockItems: 0,
-    outOfStockItems: 0,
+    availableCylinders: 0,
+    soldCylinders: 0,
+    maintenanceCylinders: 0,
+    damagedCylinders: 0,
+    missingCylinders: 0,
     recentActivity: [],
+    weightDistribution: {
+      '11kg': 0,
+      '22kg': 0,
+      '50kg': 0,
+    },
   })
   const [filterMode, setFilterMode] = useState<"month" | "year" | "custom">("month")
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
@@ -51,44 +67,58 @@ export default function ReportsPage() {
   }, [products, loading, filterMode, selectedMonth, selectedYear, fromDate, toDate])
 
   const generateReportData = () => {
-    const totalProducts = products.length
-    const totalValue = products.reduce((sum, product) => sum + product.quantity * product.unit_cost, 0)
-    const lowStockItems = products.filter((product) => product.quantity <= product.min_threshold).length
-    const outOfStockItems = products.filter((product) => product.quantity === 0).length
+    const totalCylinders = products.length
+    const totalValue = products.reduce((sum, product) => sum + product.unit_cost, 0)
+    
+    // Status-based counting
+    const availableCylinders = products.filter((product) => product.status === 'available').length
+    const soldCylinders = products.filter((product) => product.status === 'sold').length
+    const maintenanceCylinders = products.filter((product) => product.status === 'maintenance').length
+    const damagedCylinders = products.filter((product) => product.status === 'damaged').length
+    const missingCylinders = products.filter((product) => product.status === 'missing').length
 
-    // Generate mock activity data
+    // Weight distribution
+    const weightDistribution = {
+      '11kg': products.filter((product) => product.weight_kg === 11).length,
+      '22kg': products.filter((product) => product.weight_kg === 22).length,
+      '50kg': products.filter((product) => product.weight_kg === 50).length,
+    }
+
+    // Generate recent activity data based on simplified system
     const recentActivity = products.slice(0, 10).map((product, index) => ({
       id: product.id,
-              name: product.name,
-      action: index % 3 === 0 ? "added" : index % 3 === 1 ? "updated" : "stock_movement",
-      quantity_change: Math.floor(Math.random() * 20) - 10,
-              value_change: (Math.floor(Math.random() * 20) - 10) * product.unit_cost,
+      cylinderId: product.id,
+      action: index % 4 === 0 ? "cylinder_added" : 
+              index % 4 === 1 ? "status_changed" : 
+              index % 4 === 2 ? "maintenance_scheduled" : "status_updated",
+      status: product.status,
+      weight_kg: product.weight_kg,
       date: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
     }))
 
     setReportData({
-      totalProducts,
+      totalCylinders,
       totalValue,
-      lowStockItems,
-      outOfStockItems,
+      availableCylinders,
+      soldCylinders,
+      maintenanceCylinders,
+      damagedCylinders,
+      missingCylinders,
       recentActivity,
+      weightDistribution,
     })
   }
 
   const exportToCSV = () => {
-    const headers = ["Product Name", "Unit Type", "Quantity", "Price per Unit", "Total Value", "Supplier", "Status"]
+    const headers = ["Cylinder ID", "QR Code", "Weight (kg)", "Unit Cost", "Status", "Supplier", "Created Date"]
     const csvData = products.map((product) => [
-              product.name,
-      product.unit_type,
-      product.quantity,
-              product.unit_cost,
-              product.quantity * product.unit_cost,
+      product.id,
+      product.qr_code,
+      product.weight_kg,
+      product.unit_cost,
+      product.status,
       product.supplier || "N/A",
-      product.quantity === 0
-        ? "Out of Stock"
-        : product.quantity <= product.min_threshold
-          ? "Low Stock"
-          : "In Stock",
+      new Date(product.created_at).toLocaleDateString(),
     ])
 
     const csvContent = [headers, ...csvData].map((row) => row.map((cell) => `"${cell}"`).join(",")).join("\n")
@@ -97,7 +127,7 @@ export default function ReportsPage() {
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
-    a.download = `petrogreen-inventory-report-${new Date().toISOString().split("T")[0]}.csv`
+    a.download = `petrogreen-cylinder-report-${new Date().toISOString().split("T")[0]}.csv`
     a.click()
     window.URL.revokeObjectURL(url)
   }
@@ -261,51 +291,85 @@ export default function ReportsPage() {
           </Card>
 
           {/* Summary Cards */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Products</CardTitle>
+                <CardTitle className="text-sm font-medium">Total Cylinders</CardTitle>
                 <TrendingUp className="h-4 w-4 text-blue-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{reportData.totalProducts}</div>
-                <p className="text-xs text-gray-600">Active inventory items</p>
+                <div className="text-2xl font-bold">{reportData.totalCylinders}</div>
+                <p className="text-xs text-gray-600">Unique cylinders tracked</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Value</CardTitle>
+                <CardTitle className="text-sm font-medium">Available</CardTitle>
                 <Activity className="h-4 w-4 text-green-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(reportData.totalValue)}</div>
-                <p className="text-xs text-gray-600">Current inventory value</p>
+                <div className="text-2xl font-bold text-green-600">{reportData.availableCylinders}</div>
+                <p className="text-xs text-gray-600">Ready for distribution</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Low Stock Items</CardTitle>
+                <CardTitle className="text-sm font-medium">Sold</CardTitle>
+                <TrendingUp className="h-4 w-4 text-blue-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">{reportData.soldCylinders}</div>
+                <p className="text-xs text-gray-600">Sold to customers</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Maintenance</CardTitle>
                 <TrendingDown className="h-4 w-4 text-yellow-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-yellow-600">{reportData.lowStockItems}</div>
-                <p className="text-xs text-gray-600">Need restocking</p>
+                <div className="text-2xl font-bold text-yellow-600">{reportData.maintenanceCylinders}</div>
+                <p className="text-xs text-gray-600">Under maintenance</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Out of Stock</CardTitle>
+                <CardTitle className="text-sm font-medium">Issues</CardTitle>
                 <TrendingDown className="h-4 w-4 text-red-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-red-600">{reportData.outOfStockItems}</div>
-                <p className="text-xs text-gray-600">Urgent restocking needed</p>
+                <div className="text-2xl font-bold text-red-600">{reportData.damagedCylinders + reportData.missingCylinders}</div>
+                <p className="text-xs text-gray-600">Damaged + Missing</p>
               </CardContent>
             </Card>
           </div>
+
+          {/* Weight Distribution */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Cylinder Weight Distribution</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="text-center p-4 border rounded-lg">
+                  <div className="text-2xl font-bold text-blue-600">{reportData.weightDistribution['11kg']}</div>
+                  <p className="text-sm text-gray-600">11kg Cylinders</p>
+                </div>
+                <div className="text-center p-4 border rounded-lg">
+                  <div className="text-2xl font-bold text-green-600">{reportData.weightDistribution['22kg']}</div>
+                  <p className="text-sm text-gray-600">22kg Cylinders</p>
+                </div>
+                <div className="text-center p-4 border rounded-lg">
+                  <div className="text-2xl font-bold text-purple-600">{reportData.weightDistribution['50kg']}</div>
+                  <p className="text-sm text-gray-600">50kg Cylinders</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Activity Log */}
           <Card>
@@ -324,40 +388,49 @@ export default function ReportsPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Date</TableHead>
-                        <TableHead>Product</TableHead>
+                        <TableHead>Cylinder ID</TableHead>
+                        <TableHead>Weight</TableHead>
                         <TableHead>Action</TableHead>
-                        <TableHead>Quantity Change</TableHead>
-                        <TableHead>Value Change</TableHead>
+                        <TableHead>Status</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {reportData.recentActivity.map((activity) => (
                         <TableRow key={activity.id}>
                           <TableCell>{new Date(activity.date).toLocaleDateString()}</TableCell>
-                          <TableCell className="font-medium">{activity.name}</TableCell>
+                          <TableCell className="font-medium">{activity.cylinderId}</TableCell>
+                          <TableCell>{activity.weight_kg}kg</TableCell>
                           <TableCell>
                             <Badge
                               variant={
-                                activity.action === "added"
+                                activity.action === "cylinder_added"
                                   ? "default"
-                                  : activity.action === "updated"
+                                  : activity.action === "status_changed"
                                     ? "secondary"
-                                    : "outline"
+                                    : activity.action === "maintenance_scheduled"
+                                      ? "destructive"
+                                      : "outline"
                               }
                             >
-                              {activity.action}
+                              {activity.action.replace('_', ' ')}
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <span className={activity.quantity_change > 0 ? "text-green-600" : "text-red-600"}>
-                              {activity.quantity_change > 0 ? "+" : ""}
-                              {activity.quantity_change}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <span className={activity.value_change > 0 ? "text-green-600" : "text-red-600"}>
-                              {formatCurrency(activity.value_change)}
-                            </span>
+                            <Badge
+                              className={
+                                activity.status === "available"
+                                  ? "bg-green-100 text-green-800"
+                                  : activity.status === "sold"
+                                    ? "bg-blue-100 text-blue-800"
+                                    : activity.status === "maintenance"
+                                      ? "bg-yellow-100 text-yellow-800"
+                                      : activity.status === "damaged"
+                                        ? "bg-red-100 text-red-800"
+                                        : "bg-gray-100 text-gray-800"
+                              }
+                            >
+                              {activity.status}
+                            </Badge>
                           </TableCell>
                         </TableRow>
                       ))}

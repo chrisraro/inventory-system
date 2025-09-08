@@ -36,33 +36,46 @@ export default function Dashboard() {
   useEffect(() => {
     const filtered = products.filter(
       (product) =>
-        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (product.supplier && product.supplier.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        product.weight_kg.toString().includes(searchTerm),
+        (product.name?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+        (product.supplier?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+        (product.weight_kg?.toString().includes(searchTerm) || false),
     )
     setFilteredProducts(filtered)
   }, [searchTerm, products])
 
-  // Calculate metrics
+  // Calculate metrics for simplified system
   const totalProducts = products.length
-  const totalValue = products.reduce((sum, product) => sum + product.quantity * product.unit_cost, 0)
-  const lowStockItems = products.filter((product) => product.quantity <= product.min_threshold)
-  const outOfStockItems = products.filter((product) => product.quantity === 0)
+  const totalValue = products.reduce((sum, product) => sum + product.unit_cost, 0)
+  const availableCylinders = products.filter((product) => product.status === 'available')
+  const soldCylinders = products.filter((product) => product.status === 'sold')
+  const maintenanceCylinders = products.filter((product) => product.status === 'maintenance')
+  const damagedCylinders = products.filter((product) => product.status === 'damaged')
+  const missingCylinders = products.filter((product) => product.status === 'missing')
 
-  const getStatusColor = (product: any) => {
-    if (product.quantity === 0) return "bg-red-100 text-red-800"
-    if (product.quantity <= product.min_threshold) return "bg-yellow-100 text-yellow-800"
-    return "bg-green-100 text-green-800"
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'available': return "bg-green-100 text-green-800"
+      case 'sold': return "bg-blue-100 text-blue-800"
+      case 'maintenance': return "bg-yellow-100 text-yellow-800"
+      case 'damaged': return "bg-red-100 text-red-800"
+      case 'missing': return "bg-gray-100 text-gray-800"
+      default: return "bg-gray-100 text-gray-800"
+    }
   }
 
-  const getStatusText = (product: any) => {
-    if (product.quantity === 0) return "Out of Stock"
-    if (product.quantity <= product.min_threshold) return "Low Stock"
-    return "In Stock"
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'available': return "Available"
+      case 'sold': return "Sold"
+      case 'maintenance': return "Maintenance"
+      case 'damaged': return "Damaged"
+      case 'missing': return "Missing"
+      default: return status
+    }
   }
 
   const getProductDisplayName = (product: any) => {
-    return `${formatWeight(product.weight_kg)} ${product.name}`
+    return `${formatWeight(product.weight_kg)} LPG Cylinder`
   }
 
   const handleDelete = async (id: string, name: string, weight: number) => {
@@ -113,7 +126,7 @@ export default function Dashboard() {
           </div>
 
           {/* Metrics Cards */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Cylinders</CardTitle>
@@ -121,40 +134,51 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{totalProducts}</div>
-                <p className="text-xs text-muted-foreground">Active cylinder types</p>
+                <p className="text-xs text-muted-foreground">Unique cylinders tracked</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Value</CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Available</CardTitle>
+                <Package className="h-4 w-4 text-green-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(totalValue)}</div>
-                <p className="text-xs text-muted-foreground">Current inventory value</p>
+                <div className="text-2xl font-bold text-green-600">{availableCylinders.length}</div>
+                <p className="text-xs text-muted-foreground">Ready for distribution</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Low Stock Alerts</CardTitle>
+                <CardTitle className="text-sm font-medium">Sold</CardTitle>
+                <DollarSign className="h-4 w-4 text-blue-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">{soldCylinders.length}</div>
+                <p className="text-xs text-muted-foreground">Sold to customers</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Maintenance</CardTitle>
                 <AlertTriangle className="h-4 w-4 text-yellow-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-yellow-600">{lowStockItems.length}</div>
-                <p className="text-xs text-muted-foreground">Cylinders need restocking</p>
+                <div className="text-2xl font-bold text-yellow-600">{maintenanceCylinders.length}</div>
+                <p className="text-xs text-muted-foreground">Under maintenance</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Out of Stock</CardTitle>
+                <CardTitle className="text-sm font-medium">Issues</CardTitle>
                 <TrendingUp className="h-4 w-4 text-red-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-red-600">{outOfStockItems.length}</div>
-                <p className="text-xs text-muted-foreground">Cylinders out of stock</p>
+                <div className="text-2xl font-bold text-red-600">{damagedCylinders.length + missingCylinders.length}</div>
+                <p className="text-xs text-muted-foreground">Damaged + Missing</p>
               </CardContent>
             </Card>
           </div>
@@ -163,7 +187,7 @@ export default function Dashboard() {
           <Tabs defaultValue="inventory" className="space-y-4">
             <TabsList>
               <TabsTrigger value="inventory">Cylinder Inventory</TabsTrigger>
-              <TabsTrigger value="alerts">Stock Alerts</TabsTrigger>
+              <TabsTrigger value="status">Status Overview</TabsTrigger>
               <TabsTrigger value="recent">Recent Additions</TabsTrigger>
             </TabsList>
 
@@ -207,15 +231,20 @@ export default function Dashboard() {
                                 {formatWeight(product.weight_kg)}
                               </Badge>
                             </h3>
-                            <p className="text-sm text-gray-600">{product.supplier || "No supplier"}</p>
+                            <div className="flex items-center space-x-2">
+                              <p className="text-sm text-gray-600">{product.id}</p>
+                              {product.supplier && (
+                                <span className="text-sm text-gray-500">• {product.supplier}</span>
+                              )}
+                            </div>
                           </div>
                         </div>
                         <div className="flex items-center space-x-4">
                           <div className="text-right">
-                            <p className="font-medium">{product.quantity} units</p>
-                            <p className="text-sm text-gray-600">{formatCurrency(product.unit_cost)}</p>
+                            <p className="font-medium">{formatCurrency(product.unit_cost)}</p>
+                            <p className="text-sm text-gray-600">Unit cost</p>
                           </div>
-                          <Badge className={getStatusColor(product)}>{getStatusText(product)}</Badge>
+                          <Badge className={getStatusColor(product.status)}>{getStatusText(product.status)}</Badge>
                           <div className="flex items-center space-x-2">
                             {hasPermission("edit_product") && (
                               <Link href={`/edit-item/${product.id}`}>
@@ -228,7 +257,7 @@ export default function Dashboard() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleDelete(product.id, product.name, product.weight_kg)}
+                                onClick={() => handleDelete(product.id, `${formatWeight(product.weight_kg)} LPG Cylinder`, product.weight_kg)}
                                 className="text-red-600 hover:text-red-700 hover:bg-red-50"
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -248,52 +277,96 @@ export default function Dashboard() {
               </Card>
             </TabsContent>
 
-            <TabsContent value="alerts" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <AlertTriangle className="mr-2 h-5 w-5 text-yellow-600" />
-                    Stock Alerts
-                  </CardTitle>
-                  <CardDescription>Cylinders that need immediate attention</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {lowStockItems.concat(outOfStockItems).map((product) => (
-                      <div
-                        key={product.id}
-                        className="flex items-center justify-between p-4 border rounded-lg bg-yellow-50 border-yellow-200"
-                      >
-                        <div className="flex items-center space-x-4">
-                          <AlertTriangle className="h-5 w-5 text-yellow-600" />
+            <TabsContent value="status" className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {/* Available Cylinders */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center text-green-600">
+                      <Package className="mr-2 h-5 w-5" />
+                      Available Cylinders
+                    </CardTitle>
+                    <CardDescription>Ready for distribution</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {availableCylinders.slice(0, 5).map((product) => (
+                        <div key={product.id} className="flex justify-between items-center p-2 bg-green-50 rounded">
+                          <span className="text-sm font-medium">{getProductDisplayName(product)}</span>
+                          <span className="text-xs text-gray-600">{product.id}</span>
+                        </div>
+                      ))}
+                      {availableCylinders.length === 0 && (
+                        <p className="text-sm text-gray-500">No available cylinders</p>
+                      )}
+                      {availableCylinders.length > 5 && (
+                        <p className="text-xs text-gray-500">+{availableCylinders.length - 5} more</p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Maintenance Required */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center text-yellow-600">
+                      <AlertTriangle className="mr-2 h-5 w-5" />
+                      Maintenance Required
+                    </CardTitle>
+                    <CardDescription>Cylinders under maintenance</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {maintenanceCylinders.slice(0, 5).map((product) => (
+                        <div key={product.id} className="flex justify-between items-center p-2 bg-yellow-50 rounded">
+                          <span className="text-sm font-medium">{getProductDisplayName(product)}</span>
+                          <span className="text-xs text-gray-600">{product.id}</span>
+                        </div>
+                      ))}
+                      {maintenanceCylinders.length === 0 && (
+                        <p className="text-sm text-gray-500">No cylinders in maintenance</p>
+                      )}
+                      {maintenanceCylinders.length > 5 && (
+                        <p className="text-xs text-gray-500">+{maintenanceCylinders.length - 5} more</p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Issues */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center text-red-600">
+                      <TrendingUp className="mr-2 h-5 w-5" />
+                      Issues
+                    </CardTitle>
+                    <CardDescription>Damaged or missing cylinders</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {damagedCylinders.concat(missingCylinders).slice(0, 5).map((product) => (
+                        <div key={product.id} className="flex justify-between items-center p-2 bg-red-50 rounded">
                           <div>
-                            <h3 className="font-medium">{getProductDisplayName(product)}</h3>
-                            <p className="text-sm text-gray-600">{product.supplier || "No supplier"}</p>
+                            <span className="text-sm font-medium">{getProductDisplayName(product)}</span>
+                            <span className="ml-2 text-xs text-red-600">({getStatusText(product.status)})</span>
                           </div>
+                          <span className="text-xs text-gray-600">{product.id}</span>
                         </div>
-                        <div className="text-right">
-                          <p className="font-medium text-yellow-800">
-                            {product.quantity} / {product.min_threshold} minimum
-                          </p>
-                          <p className="text-sm text-yellow-600">
-                            {product.quantity === 0 ? "Out of stock" : "Low stock"}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                    {lowStockItems.length === 0 && outOfStockItems.length === 0 && (
-                      <p className="text-center text-gray-500 py-8">No stock alerts at this time</p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                      ))}
+                      {damagedCylinders.length === 0 && missingCylinders.length === 0 && (
+                        <p className="text-sm text-gray-500">No issues reported</p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </TabsContent>
 
             <TabsContent value="recent" className="space-y-4">
               <Card>
                 <CardHeader>
                   <CardTitle>Recent Cylinders</CardTitle>
-                  <CardDescription>Recently added or updated cylinder inventory</CardDescription>
+                  <CardDescription>Recently added cylinders to the system</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
@@ -307,13 +380,13 @@ export default function Dashboard() {
                             <h3 className="font-medium">{getProductDisplayName(product)}</h3>
                             <p className="text-sm text-gray-600">
                               <Calendar className="inline h-3 w-3 mr-1" />
-                              {product.expiration_date ? `Expires: ${product.expiration_date}` : "No expiration date"}
+                              {product.id} • {getStatusText(product.status)}
                             </p>
                           </div>
                         </div>
                         <div className="text-right">
                           <p className="font-medium">{formatCurrency(product.unit_cost)}</p>
-                          <p className="text-sm text-gray-600">{product.quantity} in stock</p>
+                          <Badge className={getStatusColor(product.status)}>{getStatusText(product.status)}</Badge>
                         </div>
                       </div>
                     ))}
