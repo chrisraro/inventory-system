@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
+import { supabase } from '@/lib/supabase'
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,8 +9,6 @@ export async function GET(request: NextRequest) {
     if (!qrCode) {
       return NextResponse.json({ error: 'QR code is required' }, { status: 400 })
     }
-
-    const supabase = createRouteHandlerClient({ cookies })
 
     // Check if user is authenticated
     const { data: { user }, error: authError } = await supabase.auth.getUser()
