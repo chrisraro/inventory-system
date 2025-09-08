@@ -7,42 +7,26 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { CalendarIcon, Package, QrCode, ArrowLeft } from "lucide-react"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { format } from "date-fns"
+import { Package, QrCode, ArrowLeft } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/auth-context"
 import ProtectedRoute from "@/components/auth/protected-route"
 import DashboardLayout from "@/components/layout/dashboard-layout"
-import { createProduct, generateQRCodeData, createQRCode } from "@/lib/supabase"
-import { LPG_BRANDS, formatWeight } from "@/lib/constants"
-import { LPG_WEIGHTS, getThresholdByWeight } from "@/lib/validation"
-import { cn } from "@/lib/utils"
 
 export default function AddItemPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
-  const [expirationDate, setExpirationDate] = useState<Date>()
   const [qrCodeFromUrl, setQrCodeFromUrl] = useState<string | null>(null)
 
   const [formData, setFormData] = useState({
     weight_kg: "",
-    brand: "",
-    supplier: "",
     unit_cost: "",
-    quantity: "",
-    minimum_stock: "",
-    maximum_stock: "",
-    location: "",
-    notes: "",
+    supplier: "",
   })
 
   // Handle QR code from URL parameters
@@ -54,14 +38,9 @@ export default function AddItemPage() {
   }, [searchParams])
 
   const handleWeightChange = (weight: string) => {
-    const weightValue = Number.parseFloat(weight)
-    const threshold = getThresholdByWeight(weightValue)
-
     setFormData((prev) => ({
       ...prev,
       weight_kg: weight,
-      minimum_stock: threshold.toString(),
-      maximum_stock: (threshold * 10).toString(), // Default max stock
     }))
   }
 
@@ -70,35 +49,31 @@ export default function AddItemPage() {
     setLoading(true)
 
     try {
-      // Validate required fields
-      if (!formData.weight_kg || !formData.brand || !formData.unit_cost || !formData.quantity) {
+      // Validate required fields - simplified validation
+      if (!qrCodeFromUrl) {
         toast({
           title: "Validation Error",
-          description: "Please fill in all required fields",
+          description: "QR code is required. Please scan a QR code first.",
           variant: "destructive",
         })
         return
       }
 
-      // Create product with QR-based ID
-      const qrCode = qrCodeFromUrl || ""
-      const productId = qrCode ? `LPG-${qrCode.toUpperCase().replace('LPG-', '')}` : undefined
-      
+      if (!formData.weight_kg || !formData.unit_cost) {
+        toast({
+          title: "Validation Error",
+          description: "Please fill in cylinder weight and unit cost",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Create simplified product data
       const productData = {
-        id: productId, // Use QR-based ID if available
-        qr_code: qrCode, // Store raw QR code
-        name: "LPG Cylinder",
-        brand: formData.brand,
-        weight_kg: Number.parseFloat(formData.weight_kg),
-        unit_type: "cylinder",
-        category: "LPG",
-        unit_cost: Number.parseFloat(formData.unit_cost),
-        current_stock: Number.parseInt(formData.quantity),
-        min_threshold: Number.parseInt(formData.minimum_stock) || getThresholdByWeight(Number.parseFloat(formData.weight_kg)),
-        max_threshold: formData.maximum_stock ? Number.parseInt(formData.maximum_stock) : 100,
-        supplier_id: null, // Will be updated later if supplier system is implemented
-        expiry_date: expirationDate ? format(expirationDate, "yyyy-MM-dd") : null,
-        user_id: user?.id,
+        qr_code: qrCodeFromUrl,
+        weight_kg: parseFloat(formData.weight_kg),
+        unit_cost: parseFloat(formData.unit_cost),
+        supplier: formData.supplier || null,
       }
 
       // Create product using new QR-based system
@@ -119,7 +94,7 @@ export default function AddItemPage() {
 
       toast({
         title: "Success",
-        description: `${formatWeight(productData.weight_kg)} ${productData.brand} LPG Cylinder added successfully${qrCodeFromUrl ? ` (ID: ${productId})` : ""}`,
+        description: `${formData.weight_kg}kg LPG Cylinder added successfully (ID: LPG-${qrCodeFromUrl})`,
       })
 
       router.push("/")
@@ -166,177 +141,8 @@ export default function AddItemPage() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Weight Selection */}
-                <div className="space-y-2">
-                  <Label htmlFor="weight">Cylinder Weight *</Label>
-                  <Select value={formData.weight_kg} onValueChange={handleWeightChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select cylinder weight" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {LPG_WEIGHTS.map((weight) => (
-                        <SelectItem key={weight.value} value={weight.value.toString()}>
-                          <div className="flex items-center justify-between w-full">
-                            <span>{weight.label}</span>
-                            <Badge variant="secondary" className="ml-2">
-                              Min: {weight.threshold}
-                            </Badge>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Brand Selection */}
-                <div className="space-y-2">
-                  <Label htmlFor="brand">Brand *</Label>
-                  <Select
-                    value={formData.brand}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, brand: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select brand" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {LPG_BRANDS.map((brand) => (
-                        <SelectItem key={brand} value={brand}>
-                          {brand}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Supplier */}
-                <div className="space-y-2">
-                  <Label htmlFor="supplier">Supplier</Label>
-                  <Input
-                    id="supplier"
-                    value={formData.supplier}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, supplier: e.target.value }))}
-                    placeholder="Enter supplier name"
-                  />
-                </div>
-
-                <Separator />
-
-                {/* Pricing and Stock */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="unit_cost">Unit Cost (₱) *</Label>
-                    <Input
-                      id="unit_cost"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={formData.unit_cost}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, unit_cost: e.target.value }))}
-                      placeholder="0.00"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="quantity">Initial Quantity *</Label>
-                    <Input
-                      id="quantity"
-                      type="number"
-                      min="0"
-                      value={formData.quantity}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, quantity: e.target.value }))}
-                      placeholder="0"
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* Stock Thresholds */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="minimum_stock">Minimum Stock Level</Label>
-                    <Input
-                      id="minimum_stock"
-                      type="number"
-                      min="0"
-                      value={formData.minimum_stock}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, minimum_stock: e.target.value }))}
-                      placeholder="Auto-set based on weight"
-                    />
-                    <p className="text-xs text-gray-500">Alert when stock falls below this level</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="maximum_stock">Maximum Stock Level</Label>
-                    <Input
-                      id="maximum_stock"
-                      type="number"
-                      min="0"
-                      value={formData.maximum_stock}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, maximum_stock: e.target.value }))}
-                      placeholder="Optional"
-                    />
-                    <p className="text-xs text-gray-500">Maximum capacity for this product</p>
-                  </div>
-                </div>
-
-                <Separator />
-
-                {/* Additional Information */}
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="location">Storage Location</Label>
-                    <Input
-                      id="location"
-                      value={formData.location}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, location: e.target.value }))}
-                      placeholder="e.g., Warehouse A-1, Section B"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="expiration">Expiration Date</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !expirationDate && "text-muted-foreground",
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {expirationDate ? format(expirationDate, "PPP") : "Select expiration date"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={expirationDate}
-                          onSelect={setExpirationDate}
-                          disabled={(date) => date < new Date()}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="notes">Notes</Label>
-                    <Textarea
-                      id="notes"
-                      value={formData.notes}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
-                      placeholder="Additional notes about this product..."
-                      rows={3}
-                    />
-                  </div>
-                </div>
-
                 {qrCodeFromUrl && (
                   <>
-                    <Separator />
-                    
                     {/* QR Code Information */}
                     <div className="space-y-3 bg-green-50 p-4 rounded-lg border border-green-200">
                       <div className="flex items-center space-x-2">
@@ -352,16 +158,59 @@ export default function AddItemPage() {
                         </p>
                       </div>
                     </div>
+                    
+                    <Separator />
                   </>
                 )}
+
+                {/* Weight Selection */}
+                <div className="space-y-2">
+                  <Label htmlFor="weight">Cylinder Weight *</Label>
+                  <Select value={formData.weight_kg} onValueChange={handleWeightChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select cylinder weight" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="11">11kg - Residential</SelectItem>
+                      <SelectItem value="22">22kg - Small Business</SelectItem>
+                      <SelectItem value="50">50kg - Industrial</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Unit Cost */}
+                <div className="space-y-2">
+                  <Label htmlFor="unit_cost">Unit Cost (₱) *</Label>
+                  <Input
+                    id="unit_cost"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.unit_cost}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, unit_cost: e.target.value }))}
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
+
+                {/* Supplier (Optional) */}
+                <div className="space-y-2">
+                  <Label htmlFor="supplier">Supplier (Optional)</Label>
+                  <Input
+                    id="supplier"
+                    value={formData.supplier}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, supplier: e.target.value }))}
+                    placeholder="Enter supplier name"
+                  />
+                </div>
 
                 {/* Submit Button */}
                 <div className="flex space-x-4 pt-4">
                   <Button type="button" variant="outline" onClick={() => router.back()} className="flex-1">
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={loading} className="flex-1">
-                    {loading ? "Adding..." : "Add Product"}
+                  <Button type="submit" disabled={loading || !qrCodeFromUrl} className="flex-1">
+                    {loading ? "Adding..." : "Add Cylinder"}
                   </Button>
                 </div>
               </form>

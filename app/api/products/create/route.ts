@@ -11,51 +11,42 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Validate required fields
-    if (!productData.name || !productData.brand || !productData.weight_kg || !productData.unit_cost) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    // Validate required fields for simplified system
+    if (!productData.qr_code || !productData.weight_kg || !productData.unit_cost) {
+      return NextResponse.json({ error: 'Missing required fields: qr_code, weight_kg, unit_cost' }, { status: 400 })
     }
 
-    // If QR code is provided, generate product ID and validate uniqueness
-    if (productData.qr_code) {
-      const cleanQRCode = productData.qr_code.toUpperCase().replace('LPG-', '')
-      const productId = `LPG-${cleanQRCode}`
+    // Generate product ID from QR code
+    const cleanQRCode = productData.qr_code.toUpperCase().replace('LPG-', '')
+    const productId = `LPG-${cleanQRCode}`
 
-      // Check if product with this QR code already exists
-      const { data: existingProduct } = await supabase
-        .from('products_new')
-        .select('id')
-        .or(`qr_code.eq.${cleanQRCode},id.eq.${productId}`)
-        .eq('user_id', user.id)
-        .single()
+    // Check if product with this QR code already exists
+    const { data: existingProduct } = await supabase
+      .from('products_simplified')
+      .select('id')
+      .or(`qr_code.eq.${cleanQRCode},id.eq.${productId}`)
+      .eq('user_id', user.id)
+      .maybeSingle()
 
-      if (existingProduct) {
-        return NextResponse.json({ error: 'Product with this QR code already exists' }, { status: 409 })
-      }
-
-      // Set the generated ID and clean QR code
-      productData.id = productId
-      productData.qr_code = cleanQRCode
-    } else {
-      // For manual products without QR codes, generate a unique ID
-      productData.id = crypto.randomUUID()
-      productData.qr_code = null
+    if (existingProduct) {
+      return NextResponse.json({ error: 'Product with this QR code already exists' }, { status: 409 })
     }
 
-    // Ensure user_id is set
-    productData.user_id = user.id
+    // Create simplified product data
+    const simplifiedProduct = {
+      id: productId,
+      qr_code: cleanQRCode,
+      weight_kg: parseFloat(productData.weight_kg),
+      unit_cost: parseFloat(productData.unit_cost),
+      supplier: productData.supplier || null,
+      status: 'available', // Default status for new cylinders
+      user_id: user.id,
+    }
 
-    // Set default values
-    productData.current_stock = productData.current_stock || 0
-    productData.min_threshold = productData.min_threshold || 0
-    productData.max_threshold = productData.max_threshold || 100
-    productData.unit_type = productData.unit_type || 'cylinder'
-    productData.category = productData.category || 'LPG'
-
-    // Insert into products_new table
+    // Insert into simplified products table
     const { data: product, error } = await supabase
-      .from('products_new')
-      .insert([productData])
+      .from('products_simplified')
+      .insert([simplifiedProduct])
       .select()
       .single()
 

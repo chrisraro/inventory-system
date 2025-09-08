@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
 
     // Check if product exists with this QR code or product ID
     const { data: product, error } = await supabase
-      .from('products_new')
+      .from('products_simplified')
       .select('*')
       .or(`qr_code.eq.${qrCode},id.eq.${productId}`)
       .eq('user_id', user.id)

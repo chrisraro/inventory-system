@@ -8,11 +8,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { 
-  Package, QrCode, Scan, ShoppingCart, Wrench, 
-  AlertTriangle, Eye, Plus 
+  TrendingUp, TrendingDown, Package, Calendar, Search, 
+  QrCode, Scan, ArrowUpDown, ShoppingCart, Wrench, 
+  AlertTriangle, Trash2, Eye, Plus 
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/auth-context"
@@ -43,6 +44,16 @@ interface StockMovement {
   products_simplified: Product
 }
 
+interface CylinderSummary {
+  weight_kg: number
+  total_count: number
+  available_count: number
+  sold_count: number
+  maintenance_count: number
+  damaged_count: number
+  missing_count: number
+}
+
 const statusOptions = [
   { value: "available", label: "Available", icon: Package, color: "bg-green-500" },
   { value: "sold", label: "Sold", icon: ShoppingCart, color: "bg-blue-500" },
@@ -61,12 +72,15 @@ const movementTypes = [
   { value: "lost", label: "Lost/Missing" },
 ]
 
-export default function StockMovementsPage() {
+export default function SimplifiedStockMovementsPage() {
   const { user } = useAuth()
   const router = useRouter()
+  const [mounted, setMounted] = useState(false)
   const [movements, setMovements] = useState<StockMovement[]>([])
+  const [summary, setSummary] = useState<CylinderSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showScanner, setShowScanner] = useState(false)
   const [showMovementForm, setShowMovementForm] = useState(false)
   const [scannedProduct, setScannedProduct] = useState<Product | null>(null)
 
@@ -82,10 +96,19 @@ export default function StockMovementsPage() {
   const [filters, setFilters] = useState({
     status: "",
     weight: "",
+    movement_type: "",
   })
 
   useEffect(() => {
+    setMounted(true)
     fetchMovements()
+    fetchSummary()
+  }, [])
+
+  useEffect(() => {
+    if (mounted) {
+      fetchMovements()
+    }
   }, [filters])
 
   const fetchMovements = async () => {
@@ -111,8 +134,49 @@ export default function StockMovementsPage() {
     }
   }
 
-  const handleQRScanRedirect = () => {
-    router.push('/qr-scanner')
+  const fetchSummary = async () => {
+    try {
+      // We'll implement this as a separate endpoint if needed
+      // For now, calculate summary from movements
+    } catch (error) {
+      console.error("Error fetching summary:", error)
+    }
+  }
+
+  const handleQRScan = async (qrCode: string) => {
+    try {
+      const response = await fetch(`/api/products/check-qr?qr=${encodeURIComponent(qrCode)}`)
+      if (!response.ok) throw new Error('Failed to check QR code')
+      
+      const { exists, product } = await response.json()
+      
+      if (exists && product) {
+        setScannedProduct(product)
+        setFormData(prev => ({
+          ...prev,
+          product_id: product.id
+        }))
+        setShowScanner(false)
+        setShowMovementForm(true)
+        toast({
+          title: "Product Scanned",
+          description: `Found ${product.weight_kg}kg cylinder (${product.id})`,
+        })
+      } else {
+        toast({
+          title: "Product Not Found",
+          description: "This QR code is not in the system. Please add the product first.",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Error scanning QR:", error)
+      toast({
+        title: "Scan Error",
+        description: "Failed to process QR code",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -161,6 +225,7 @@ export default function StockMovementsPage() {
       setShowMovementForm(false)
       
       fetchMovements()
+      fetchSummary()
     } catch (error) {
       console.error("Error creating movement:", error)
       toast({
@@ -185,6 +250,8 @@ export default function StockMovementsPage() {
     )
   }
 
+  if (!mounted) return null
+
   return (
     <ProtectedRoute permission="stock_movements">
       <DashboardLayout>
@@ -196,7 +263,7 @@ export default function StockMovementsPage() {
               <p className="text-gray-600">Track individual cylinder status and movements</p>
             </div>
             <div className="flex gap-2">
-              <Button onClick={handleQRScanRedirect}>
+              <Button onClick={() => setShowScanner(true)}>
                 <Scan className="h-4 w-4 mr-2" />
                 Scan QR Code
               </Button>
@@ -218,19 +285,19 @@ export default function StockMovementsPage() {
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-green-600">Available:</span>
-                      <span className="font-medium">-</span>
+                      <span className="font-medium">0</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-blue-600">Sold:</span>
-                      <span className="font-medium">-</span>
+                      <span className="font-medium">0</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-yellow-600">Maintenance:</span>
-                      <span className="font-medium">-</span>
+                      <span className="font-medium">0</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-red-600">Damaged:</span>
-                      <span className="font-medium">-</span>
+                      <span className="font-medium">0</span>
                     </div>
                   </div>
                 </CardContent>
@@ -244,7 +311,7 @@ export default function StockMovementsPage() {
               <CardTitle>Filters</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label>Status</Label>
                   <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
@@ -275,6 +342,22 @@ export default function StockMovementsPage() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div>
+                  <Label>Movement Type</Label>
+                  <Select value={filters.movement_type} onValueChange={(value) => setFilters(prev => ({ ...prev, movement_type: value }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All types" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All types</SelectItem>
+                      {movementTypes.map((type) => (
+                        <SelectItem key={type.value} value={type.value}>
+                          {type.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -291,11 +374,7 @@ export default function StockMovementsPage() {
                 <div className="text-center py-8">
                   <Package className="h-12 w-12 mx-auto text-gray-400 mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No movements found</h3>
-                  <p className="text-gray-600 mb-4">Start by scanning QR codes to track cylinder movements</p>
-                  <Button onClick={handleQRScanRedirect}>
-                    <Scan className="h-4 w-4 mr-2" />
-                    Scan First QR Code
-                  </Button>
+                  <p className="text-gray-600">Start by scanning QR codes to track cylinder movements</p>
                 </div>
               ) : (
                 <Table>
@@ -345,6 +424,30 @@ export default function StockMovementsPage() {
           </Card>
         </div>
 
+        {/* QR Scanner Dialog */}
+        <Dialog open={showScanner} onOpenChange={setShowScanner}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Scan QR Code</DialogTitle>
+            </DialogHeader>
+            <div className="text-center py-4">
+              <Button 
+                onClick={() => {
+                  setShowScanner(false)
+                  router.push('/qr-scanner')
+                }}
+                className="w-full"
+              >
+                <QrCode className="h-4 w-4 mr-2" />
+                Open QR Scanner
+              </Button>
+              <p className="text-sm text-gray-500 mt-2">
+                Or manually enter QR code above
+              </p>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         {/* Movement Form Dialog */}
         <Dialog open={showMovementForm} onOpenChange={setShowMovementForm}>
           <DialogContent className="sm:max-w-lg">
@@ -352,18 +455,16 @@ export default function StockMovementsPage() {
               <DialogTitle>Record Movement</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label>Product ID *</Label>
-                <Input
-                  value={formData.product_id}
-                  onChange={(e) => setFormData(prev => ({ ...prev, product_id: e.target.value }))}
-                  placeholder="LPG-05285AWI1ES04"
-                  required
-                />
-                <p className="text-sm text-gray-500 mt-1">
-                  Scan QR code or enter product ID manually
-                </p>
-              </div>
+              {scannedProduct && (
+                <div className="bg-green-50 p-3 rounded-lg">
+                  <p className="text-sm font-medium text-green-900">
+                    Cylinder: {scannedProduct.id} ({scannedProduct.weight_kg}kg)
+                  </p>
+                  <p className="text-sm text-green-700">
+                    Current Status: {getStatusBadge(scannedProduct.status)}
+                  </p>
+                </div>
+              )}
               
               <div>
                 <Label>New Status *</Label>
