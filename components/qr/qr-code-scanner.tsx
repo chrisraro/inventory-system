@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Camera, CameraOff, Flashlight, FlashlightOff, Scan, X } from "lucide-react"
 import { toast } from "sonner"
 import { parseQRData, getProductByQRData } from "@/lib/supabase"
+import jsQR from "jsqr"
 
 interface QRCodeScannerProps {
   onScan: (data: string, product?: any) => void
@@ -24,8 +25,9 @@ export function QRCodeScanner({ onScan, onClose }: QRCodeScannerProps) {
   const [manualInput, setManualInput] = useState("")
   const [lastScanned, setLastScanned] = useState<string>("")
   const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
-  const scannerRef = useRef<any>(null)
+  const animationFrameRef = useRef<number | null>(null)
 
   // Demo QR codes for testing
   const demoQRCodes = ["LPG-PET-11KG-001", "LPG-SHE-22KG-002", "LPG-SOL-27KG-003", "LPG-TOT-50KG-004"]
@@ -56,17 +58,27 @@ export function QRCodeScanner({ onScan, onClose }: QRCodeScannerProps) {
       }
     } catch (error) {
       console.error("Error accessing camera:", error)
-      toast.error("Unable to access camera. Please check permissions.")
+      const errorMessage = error instanceof Error ? error.message : "Unknown error"
+      if (errorMessage.includes("Permission denied") || errorMessage.includes("NotAllowedError")) {
+        toast.error("Camera permission denied. Please allow camera access and try again.")
+      } else if (errorMessage.includes("NotFoundError")) {
+        toast.error("No camera found. Please check your device.")
+      } else if (errorMessage.includes("NotReadableError")) {
+        toast.error("Camera is already in use by another application.")
+      } else {
+        toast.error("Unable to access camera. Please check permissions and try again.")
+      }
     }
   }
 
   const stopScanning = () => {
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current)
+      animationFrameRef.current = null
+    }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop())
       streamRef.current = null
-    }
-    if (scannerRef.current) {
-      scannerRef.current = null
     }
     setIsScanning(false)
     setFlashEnabled(false)
@@ -88,23 +100,35 @@ export function QRCodeScanner({ onScan, onClose }: QRCodeScannerProps) {
   }
 
   const startQRDetection = () => {
-    // Simple QR detection simulation
-    // In a real app, you'd use a library like jsQR or zxing-js
-    const detectQR = () => {
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    const context = canvas?.getContext("2d")
+
+    if (!video || !canvas || !context) return
+
+    const scanFrame = () => {
       if (!isScanning) return
 
-      // Simulate QR detection every 2 seconds for demo
-      setTimeout(() => {
-        if (isScanning && Math.random() > 0.7) {
-          const randomQR = demoQRCodes[Math.floor(Math.random() * demoQRCodes.length)]
-          handleQRDetected(randomQR)
-        } else if (isScanning) {
-          detectQR()
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        canvas.height = video.videoHeight
+        canvas.width = video.videoWidth
+        context.drawImage(video, 0, 0, canvas.width, canvas.height)
+
+        const imageData = context.getImageData(0, 0, canvas.width, canvas.height)
+        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: "dontInvert",
+        })
+
+        if (code && code.data) {
+          handleQRDetected(code.data)
+          return // Stop scanning after successful detection
         }
-      }, 2000)
+      }
+
+      animationFrameRef.current = requestAnimationFrame(scanFrame)
     }
 
-    detectQR()
+    scanFrame()
   }
 
   const handleQRDetected = async (qrData: string) => {
@@ -145,6 +169,9 @@ export function QRCodeScanner({ onScan, onClose }: QRCodeScannerProps) {
 
   useEffect(() => {
     return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+      }
       stopScanning()
     }
   }, [])
@@ -162,8 +189,9 @@ export function QRCodeScanner({ onScan, onClose }: QRCodeScannerProps) {
           {/* Camera View */}
           <div className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden">
             {isScanning ? (
-              <>
+              <>  
                 <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+                <canvas ref={canvasRef} style={{ display: 'none' }} />
                 {/* Scanning Overlay */}
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="w-48 h-48 border-2 border-white rounded-lg relative">

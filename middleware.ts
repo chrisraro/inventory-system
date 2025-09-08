@@ -16,7 +16,7 @@ const SECURITY_HEADERS = {
   "X-XSS-Protection": "1; mode=block",
   "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
   "Referrer-Policy": "strict-origin-when-cross-origin",
-  "Permissions-Policy": "camera=(), microphone=(), geolocation=()"
+  "Permissions-Policy": "microphone=(), geolocation=()"
 }
 
 export async function middleware(request: NextRequest, event: NextFetchEvent) {

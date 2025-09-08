@@ -51,11 +51,18 @@ export default function QRCodesPage() {
     }
   }
 
-  const handleScanResult = (product: any) => {
-    toast({
-      title: "QR Code Scanned",
-      description: `Product: ${product.name}`,
-    })
+  const handleScanResult = (qrData: string, product?: any) => {
+    if (product) {
+      toast({
+        title: "QR Code Scanned Successfully",
+        description: `Product: ${product.name} - ${product.brand}`,
+      })
+    } else {
+      toast({
+        title: "QR Code Scanned",
+        description: `QR Data: ${qrData}`,
+      })
+    }
     setShowScanner(false)
   }
 
@@ -111,12 +118,12 @@ export default function QRCodesPage() {
                     Scan QR
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Scan QR Code</DialogTitle>
-                  </DialogHeader>
-                  <QRCodeScanner onScan={handleScanResult} />
-                </DialogContent>
+                {showScanner && (
+                  <QRCodeScanner 
+                    onScan={handleScanResult} 
+                    onClose={() => setShowScanner(false)} 
+                  />
+                )}
               </Dialog>
 
               <Dialog open={showExporter} onOpenChange={setShowExporter}>
