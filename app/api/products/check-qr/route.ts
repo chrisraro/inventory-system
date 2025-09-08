@@ -29,6 +29,13 @@ export async function GET(request: NextRequest) {
 
     if (error && error.code !== 'PGRST116') {
       console.error('Database error:', error)
+      // Check if it's a table not found error
+      if (error.message?.includes('relation') && error.message?.includes('does not exist')) {
+        return NextResponse.json({ 
+          error: 'Database tables not found. Please run the database migration script first.',
+          code: 'TABLES_NOT_FOUND'
+        }, { status: 503 })
+      }
       return NextResponse.json({ error: 'Database error' }, { status: 500 })
     }
 

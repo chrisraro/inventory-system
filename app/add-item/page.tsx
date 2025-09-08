@@ -85,6 +85,18 @@ export default function AddItemPage() {
         body: JSON.stringify(productData),
       })
 
+      if (response.status === 503) {
+        const errorData = await response.json()
+        if (errorData.code === 'TABLES_NOT_FOUND') {
+          toast({
+            title: "Database Setup Required",
+            description: "Please run the database migration script in Supabase SQL Editor first.",
+            variant: "destructive",
+          })
+          return
+        }
+      }
+
       if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.error || 'Failed to create product')

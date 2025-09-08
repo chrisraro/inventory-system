@@ -80,8 +80,8 @@ export default function StockMovementsPage() {
   })
 
   const [filters, setFilters] = useState({
-    status: "",
-    weight: "",
+    status: "all",
+    weight: "all",
   })
 
   useEffect(() => {
@@ -91,10 +91,23 @@ export default function StockMovementsPage() {
   const fetchMovements = async () => {
     try {
       const queryParams = new URLSearchParams()
-      if (filters.status) queryParams.set('status', filters.status)
-      if (filters.weight) queryParams.set('weight', filters.weight)
+      if (filters.status && filters.status !== 'all') queryParams.set('status', filters.status)
+      if (filters.weight && filters.weight !== 'all') queryParams.set('weight', filters.weight)
       
       const response = await fetch(`/api/stock-movements/simplified?${queryParams}`)
+      
+      if (response.status === 503) {
+        const errorData = await response.json()
+        if (errorData.code === 'TABLES_NOT_FOUND') {
+          toast({
+            title: "Database Setup Required",
+            description: "Please run the database migration script in Supabase SQL Editor first.",
+            variant: "destructive",
+          })
+          return
+        }
+      }
+      
       if (!response.ok) throw new Error('Failed to fetch movements')
       
       const { movements } = await response.json()
@@ -137,6 +150,18 @@ export default function StockMovementsPage() {
         },
         body: JSON.stringify(formData),
       })
+
+      if (response.status === 503) {
+        const errorData = await response.json()
+        if (errorData.code === 'TABLES_NOT_FOUND') {
+          toast({
+            title: "Database Setup Required",
+            description: "Please run the database migration script in Supabase SQL Editor first.",
+            variant: "destructive",
+          })
+          return
+        }
+      }
 
       if (!response.ok) {
         const errorData = await response.json()
@@ -252,7 +277,7 @@ export default function StockMovementsPage() {
                       <SelectValue placeholder="All statuses" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All statuses</SelectItem>
+                      <SelectItem value="all">All statuses</SelectItem>
                       {statusOptions.map((status) => (
                         <SelectItem key={status.value} value={status.value}>
                           {status.label}
@@ -268,7 +293,7 @@ export default function StockMovementsPage() {
                       <SelectValue placeholder="All weights" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All weights</SelectItem>
+                      <SelectItem value="all">All weights</SelectItem>
                       <SelectItem value="11">11kg</SelectItem>
                       <SelectItem value="22">22kg</SelectItem>
                       <SelectItem value="50">50kg</SelectItem>
