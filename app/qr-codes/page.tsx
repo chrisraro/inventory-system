@@ -12,7 +12,7 @@ import { toast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/auth-context"
 import ProtectedRoute from "@/components/auth/protected-route"
 import DashboardLayout from "@/components/layout/dashboard-layout"
-import { QRCodeScanner } from "@/components/qr/qr-code-scanner"
+import { useRouter } from "next/navigation"
 import { QRPDFExport } from "@/components/qr/qr-pdf-export"
 import { useQRCodes } from "@/hooks/use-qr-codes"
 import { useProducts } from "@/hooks/use-products"
@@ -20,12 +20,12 @@ import { QRCodeSVG } from "qrcode.react"
 
 export default function QRCodesPage() {
   const { user } = useAuth()
+  const router = useRouter()
   const { qrCodes, loading, generateQRCode, removeQRCode, fetchAllQRCodes } = useQRCodes()
   const { products } = useProducts()
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedProduct, setSelectedProduct] = useState<string>("")
   const [showGenerator, setShowGenerator] = useState(false)
-  const [showScanner, setShowScanner] = useState(false)
   const [showExporter, setShowExporter] = useState(false)
 
   useEffect(() => {
@@ -49,21 +49,6 @@ export default function QRCodesPage() {
     if (confirm("Are you sure you want to delete this QR code?")) {
       await removeQRCode(qrId)
     }
-  }
-
-  const handleScanResult = (qrData: string, product?: any) => {
-    if (product) {
-      toast({
-        title: "QR Code Scanned Successfully",
-        description: `Product: ${product.name} - ${product.brand}`,
-      })
-    } else {
-      toast({
-        title: "QR Code Scanned",
-        description: `QR Data: ${qrData}`,
-      })
-    }
-    setShowScanner(false)
   }
 
   const downloadQRCode = (qrData: string, productName: string) => {
@@ -111,20 +96,10 @@ export default function QRCodesPage() {
               <p className="text-gray-600">Generate, manage, and export QR codes for your products</p>
             </div>
             <div className="flex gap-2">
-              <Dialog open={showScanner} onOpenChange={setShowScanner}>
-                <DialogTrigger asChild>
-                  <Button variant="outline">
-                    <Scan className="h-4 w-4 mr-2" />
-                    Scan QR
-                  </Button>
-                </DialogTrigger>
-                {showScanner && (
-                  <QRCodeScanner 
-                    onScan={handleScanResult} 
-                    onClose={() => setShowScanner(false)} 
-                  />
-                )}
-              </Dialog>
+              <Button variant="outline" onClick={() => router.push('/qr-scanner')}>
+                <Scan className="h-4 w-4 mr-2" />
+                Scan QR
+              </Button>
 
               <Dialog open={showExporter} onOpenChange={setShowExporter}>
                 <DialogTrigger asChild>

@@ -15,7 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Menu, Home, Plus, BarChart3, Settings, LogOut, Fuel, TrendingUp, Archive, QrCode } from "lucide-react"
+import { Menu, Home, Plus, BarChart3, Settings, LogOut, Fuel, TrendingUp, Archive, QrCode, Scan } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
 import { cn } from "@/lib/utils"
 
@@ -27,6 +27,7 @@ const navigation = [
   { name: "Dashboard", href: "/", icon: Home, permission: "view_dashboard" },
   { name: "Add Product", href: "/add-item", icon: Plus, permission: "add_product" },
   { name: "QR Codes", href: "/qr-codes", icon: QrCode, permission: "add_product" },
+  { name: "QR Scanner", href: "/qr-scanner", icon: Scan, permission: "add_product" },
   { name: "Stock Movements", href: "/stock-movements", icon: TrendingUp, permission: "stock_movements" },
   { name: "Reports", href: "/reports", icon: BarChart3, permission: "view_reports" },
   { name: "Backup", href: "/backup", icon: Archive, permission: "backup_restore" },
