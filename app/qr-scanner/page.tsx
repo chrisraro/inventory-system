@@ -17,6 +17,8 @@ import ProtectedRoute from "@/components/auth/protected-route"
 export default function QRScannerPage() {
   const router = useRouter()
   const [isScanning, setIsScanning] = useState(false)
+  const [isVideoLoaded, setIsVideoLoaded] = useState(false)
+  const [cameraError, setCameraError] = useState<string | null>(null)
   const [hasFlash, setHasFlash] = useState(false)
   const [flashEnabled, setFlashEnabled] = useState(false)
   const [manualInput, setManualInput] = useState("")
@@ -32,6 +34,10 @@ export default function QRScannerPage() {
 
   const startScanning = async () => {
     try {
+      setCameraError(null)
+      setIsVideoLoaded(false)
+      
+      console.log("Requesting camera access...")
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: "environment",
@@ -40,23 +46,57 @@ export default function QRScannerPage() {
         },
       })
 
+      console.log("Camera stream obtained:", stream)
+      
       if (videoRef.current) {
-        videoRef.current.srcObject = stream
+        const video = videoRef.current
+        
+        // Add event listeners for video loading
+        video.onloadedmetadata = () => {
+          console.log("Video metadata loaded")
+          console.log("Video dimensions:", video.videoWidth, "x", video.videoHeight)
+        }
+        
+        video.oncanplay = () => {
+          console.log("Video can start playing")
+          setIsVideoLoaded(true)
+        }
+        
+        video.onerror = (error) => {
+          console.error("Video error:", error)
+          setCameraError("Video playback error")
+        }
+
+        video.srcObject = stream
         streamRef.current = stream
+
+        // Wait for video to be ready
+        await new Promise((resolve) => {
+          video.onloadeddata = () => {
+            console.log("Video data loaded")
+            resolve(true)
+          }
+        })
 
         // Check for flash capability
         const track = stream.getVideoTracks()[0]
+        console.log("Video track:", track)
         const capabilities = track.getCapabilities()
+        console.log("Camera capabilities:", capabilities)
         setHasFlash("torch" in capabilities)
 
         setIsScanning(true)
 
         // Start real QR code detection
-        startQRDetection()
+        setTimeout(() => {
+          startQRDetection()
+        }, 500) // Small delay to ensure video is fully ready
       }
     } catch (error) {
       console.error("Error accessing camera:", error)
       const errorMessage = error instanceof Error ? error.message : "Unknown error"
+      setCameraError(errorMessage)
+      
       if (errorMessage.includes("Permission denied") || errorMessage.includes("NotAllowedError")) {
         toast.error("Camera permission denied. Please allow camera access and try again.")
       } else if (errorMessage.includes("NotFoundError")) {
@@ -70,16 +110,29 @@ export default function QRScannerPage() {
   }
 
   const stopScanning = () => {
+    console.log("Stopping camera...")
+    
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current)
       animationFrameRef.current = null
     }
+    
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop())
+      streamRef.current.getTracks().forEach((track) => {
+        console.log("Stopping track:", track)
+        track.stop()
+      })
       streamRef.current = null
     }
+    
+    if (videoRef.current) {
+      videoRef.current.srcObject = null
+    }
+    
     setIsScanning(false)
+    setIsVideoLoaded(false)
     setFlashEnabled(false)
+    setCameraError(null)
   }
 
   const toggleFlash = async () => {
@@ -87,6 +140,7 @@ export default function QRScannerPage() {
       const track = streamRef.current.getVideoTracks()[0]
       try {
         await track.applyConstraints({
+          // @ts-ignore - torch is not in standard MediaTrackConstraintSet but supported by many browsers
           advanced: [{ torch: !flashEnabled }],
         })
         setFlashEnabled(!flashEnabled)
@@ -228,22 +282,50 @@ export default function QRScannerPage() {
                       playsInline 
                       muted 
                       className="w-full h-full object-cover"
-                      style={{ transform: "scaleX(-1)" }} // Mirror the video for better UX
+                      style={{ 
+                        transform: "scaleX(-1)", // Mirror the video for better UX
+                        backgroundColor: "#000" // Black background while loading
+                      }}
                     />
                     <canvas ref={canvasRef} style={{ display: 'none' }} />
-                    {/* Scanning Overlay */}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-64 h-64 border-2 border-white rounded-lg relative">
-                        <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-blue-500 rounded-tl-lg"></div>
-                        <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-blue-500 rounded-tr-lg"></div>
-                        <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-blue-500 rounded-bl-lg"></div>
-                        <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-blue-500 rounded-br-lg"></div>
+                    
+                    {/* Loading indicator */}
+                    {!isVideoLoaded && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
+                        <div className="text-center text-white">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>
+                          <p>Loading camera...</p>
+                        </div>
                       </div>
-                    </div>
-                    {/* Scanning Line Animation */}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-64 h-1 bg-blue-500 animate-pulse"></div>
-                    </div>
+                    )}
+                    
+                    {/* Error display */}
+                    {cameraError && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-red-50">
+                        <div className="text-center text-red-600 p-4">
+                          <p className="font-medium mb-2">Camera Error</p>
+                          <p className="text-sm">{cameraError}</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Scanning Overlay - only show when video is loaded */}
+                    {isVideoLoaded && !cameraError && (
+                      <>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-64 h-64 border-2 border-white rounded-lg relative">
+                            <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-blue-500 rounded-tl-lg"></div>
+                            <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-blue-500 rounded-tr-lg"></div>
+                            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-blue-500 rounded-bl-lg"></div>
+                            <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-blue-500 rounded-br-lg"></div>
+                          </div>
+                        </div>
+                        {/* Scanning Line Animation */}
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-64 h-1 bg-blue-500 animate-pulse"></div>
+                        </div>
+                      </>
+                    )}
                   </>
                 ) : (
                   <div className="flex items-center justify-center h-full text-gray-500">
@@ -259,7 +341,11 @@ export default function QRScannerPage() {
               {/* Camera Controls */}
               <div className="flex justify-center space-x-2">
                 {!isScanning ? (
-                  <Button onClick={startScanning} className="bg-blue-600 hover:bg-blue-700">
+                  <Button 
+                    onClick={startScanning} 
+                    className="bg-blue-600 hover:bg-blue-700"
+                    disabled={!!cameraError}
+                  >
                     <Camera className="h-4 w-4 mr-2" />
                     Start Camera
                   </Button>
@@ -270,11 +356,18 @@ export default function QRScannerPage() {
                       Stop Camera
                     </Button>
                     {hasFlash && (
-                      <Button onClick={toggleFlash} variant="outline">
+                      <Button onClick={toggleFlash} variant="outline" disabled={!isVideoLoaded}>
                         {flashEnabled ? <FlashlightOff className="h-4 w-4" /> : <Flashlight className="h-4 w-4" />}
                       </Button>
                     )}
                   </>
+                )}
+                
+                {/* Retry button for errors */}
+                {cameraError && (
+                  <Button onClick={startScanning} variant="outline" className="text-orange-600">
+                    Retry Camera
+                  </Button>
                 )}
               </div>
             </CardContent>
@@ -363,6 +456,30 @@ export default function QRScannerPage() {
                 <Button onClick={resetScanner} variant="outline" className="w-full">
                   Scan Another QR Code
                 </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Debug Information - only show when scanning or there's an error */}
+          {(isScanning || cameraError) && (
+            <Card className="border-gray-200">
+              <CardHeader>
+                <CardTitle className="text-gray-900">Debug Information</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-sm space-y-1">
+                  <p><strong>Scanning:</strong> {isScanning ? 'Yes' : 'No'}</p>
+                  <p><strong>Video Loaded:</strong> {isVideoLoaded ? 'Yes' : 'No'}</p>
+                  <p><strong>Has Flash:</strong> {hasFlash ? 'Yes' : 'No'}</p>
+                  <p><strong>Flash Enabled:</strong> {flashEnabled ? 'Yes' : 'No'}</p>
+                  {cameraError && (
+                    <p><strong>Error:</strong> <span className="text-red-600">{cameraError}</span></p>
+                  )}
+                  <p><strong>Stream Active:</strong> {streamRef.current ? 'Yes' : 'No'}</p>
+                  {streamRef.current && (
+                    <p><strong>Video Tracks:</strong> {streamRef.current.getVideoTracks().length}</p>
+                  )}
+                </div>
               </CardContent>
             </Card>
           )}

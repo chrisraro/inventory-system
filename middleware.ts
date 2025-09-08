@@ -16,11 +16,11 @@ const SECURITY_HEADERS = {
   "X-XSS-Protection": "1; mode=block",
   "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
   "Referrer-Policy": "strict-origin-when-cross-origin",
-  "Permissions-Policy": "microphone=(), geolocation=()"
+  "Permissions-Policy": "microphone=(), geolocation=(), camera=*"
 }
 
 export async function middleware(request: NextRequest, event: NextFetchEvent) {
-  const ip = request.ip || request.headers.get("x-forwarded-for") || "unknown"
+  const ip = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown"
   const userAgent = request.headers.get("user-agent") || "unknown"
   const path = request.nextUrl.pathname
 
