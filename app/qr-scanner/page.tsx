@@ -23,7 +23,13 @@ export default function QRScannerPage() {
 
   const startCamera = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true })
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: {
+          facingMode: { exact: "environment" }, // Force back camera
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      })
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream
@@ -39,7 +45,31 @@ export default function QRScannerPage() {
       }
     } catch (error) {
       console.error("Camera error:", error)
-      toast.error("Unable to access camera")
+      // If exact back camera fails, try with preferred back camera
+      try {
+        const fallbackStream = await navigator.mediaDevices.getUserMedia({ 
+          video: {
+            facingMode: "environment", // Prefer back camera (not exact)
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
+        })
+        
+        if (videoRef.current) {
+          videoRef.current.srcObject = fallbackStream
+          streamRef.current = fallbackStream
+          setIsActive(true)
+          
+          videoRef.current.play().catch(console.error)
+          
+          setTimeout(() => {
+            startQRScanning()
+          }, 1000)
+        }
+      } catch (fallbackError) {
+        console.error("Fallback camera error:", fallbackError)
+        toast.error("Unable to access back camera. Please check permissions.")
+      }
     }
   }
 
