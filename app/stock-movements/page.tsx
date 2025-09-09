@@ -409,17 +409,17 @@ export default function StockMovementsPage() {
       <DashboardLayout>
         <div className="space-y-6">
           {/* Header */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Cylinder Management</h1>
               <p className="text-gray-600">Track individual cylinder status and movements</p>
             </div>
-            <div className="flex gap-2">
-              <Button onClick={() => setShowScanner(!showScanner)} variant={showScanner ? "secondary" : "default"}>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button onClick={() => setShowScanner(!showScanner)} variant={showScanner ? "secondary" : "default"} className="w-full sm:w-auto">
                 <Scan className="h-4 w-4 mr-2" />
                 {showScanner ? "Close Scanner" : "Scan QR Code"}
               </Button>
-              <Button variant="outline" onClick={() => setShowMovementForm(true)}>
+              <Button variant="outline" onClick={() => setShowMovementForm(true)} className="w-full sm:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
                 Manual Entry
               </Button>
@@ -438,7 +438,7 @@ export default function StockMovementsPage() {
               <CardContent>
                 <div className="space-y-4">
                   {/* Camera View */}
-                  <div className="relative bg-black rounded-lg overflow-hidden aspect-video">
+                  <div className="relative bg-black rounded-lg overflow-hidden aspect-video w-full">
                     <video
                       ref={videoRef}
                       autoPlay
@@ -464,16 +464,20 @@ export default function StockMovementsPage() {
                     
                     {!cameraActive && (
                       <div className="absolute inset-0 flex items-center justify-center text-white">
-                        <div className="text-center">
+                        <div className="text-center p-4">
                           <Camera className="h-16 w-16 mx-auto mb-4" />
-                          <p>Camera not active</p>
+                          <p className="mb-4">Camera not active</p>
+                          <Button onClick={startCamera} className="w-full sm:w-auto">
+                            <Camera className="h-4 w-4 mr-2" />
+                            Start Camera
+                          </Button>
                         </div>
                       </div>
                     )}
                   </div>
                   
                   {/* Camera Controls */}
-                  <div className="flex justify-center space-x-2">
+                  <div className="flex flex-col sm:flex-row justify-center gap-2">
                     {!cameraActive ? (
                       <Button onClick={startCamera} className="w-full">
                         <Camera className="h-4 w-4 mr-2" />
@@ -490,7 +494,7 @@ export default function StockMovementsPage() {
                   {/* Manual Input */}
                   <div className="space-y-2">
                     <Label htmlFor="manual-qr">Or enter QR code manually:</Label>
-                    <form onSubmit={handleManualQRSubmit} className="flex space-x-2">
+                    <form onSubmit={handleManualQRSubmit} className="flex flex-col sm:flex-row gap-2">
                       <Input
                         id="manual-qr"
                         value={manualQrInput}
@@ -498,7 +502,7 @@ export default function StockMovementsPage() {
                         placeholder="Enter QR code data"
                         className="flex-1"
                       />
-                      <Button type="submit" disabled={!manualQrInput.trim()}>
+                      <Button type="submit" disabled={!manualQrInput.trim()} className="w-full sm:w-auto">
                         Submit
                       </Button>
                     </form>
@@ -509,9 +513,9 @@ export default function StockMovementsPage() {
           )}
 
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[11, 22, 50].map((weight) => (
-              <Card key={weight}>
+              <Card key={weight} className="w-full">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg">{weight}kg Cylinders</CardTitle>
                 </CardHeader>
@@ -593,54 +597,56 @@ export default function StockMovementsPage() {
                   <Package className="h-12 w-12 mx-auto text-gray-400 mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No movements found</h3>
                   <p className="text-gray-600 mb-4">Start by scanning QR codes to track cylinder movements</p>
-                  <Button onClick={() => setShowScanner(true)}>
+                  <Button onClick={() => setShowScanner(true)} className="w-full sm:w-auto">
                     <Scan className="h-4 w-4 mr-2" />
                     Scan First QR Code
                   </Button>
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Cylinder ID</TableHead>
-                      <TableHead>Weight</TableHead>
-                      <TableHead>From Status</TableHead>
-                      <TableHead>To Status</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Reason</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {movements.map((movement) => (
-                      <TableRow key={movement.id}>
-                        <TableCell className="font-mono text-sm">
-                          {movement.products_simplified?.id || movement.product_id}
-                        </TableCell>
-                        <TableCell>
-                          {movement.products_simplified?.weight_kg}kg
-                        </TableCell>
-                        <TableCell>
-                          {getStatusBadge(movement.from_status)}
-                        </TableCell>
-                        <TableCell>
-                          {getStatusBadge(movement.to_status)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">
-                            {movementTypes.find(t => t.value === movement.movement_type)?.label || movement.movement_type}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {new Date(movement.movement_date).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell className="max-w-xs truncate">
-                          {movement.reason || "-"}
-                        </TableCell>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="whitespace-nowrap">Cylinder ID</TableHead>
+                        <TableHead>Weight</TableHead>
+                        <TableHead className="whitespace-nowrap">From Status</TableHead>
+                        <TableHead className="whitespace-nowrap">To Status</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead className="whitespace-nowrap">Date</TableHead>
+                        <TableHead>Reason</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {movements.map((movement) => (
+                        <TableRow key={movement.id}>
+                          <TableCell className="font-mono text-sm max-w-[120px] truncate">
+                            {movement.products_simplified?.id || movement.product_id}
+                          </TableCell>
+                          <TableCell>
+                            {movement.products_simplified?.weight_kg}kg
+                          </TableCell>
+                          <TableCell>
+                            {getStatusBadge(movement.from_status)}
+                          </TableCell>
+                          <TableCell>
+                            {getStatusBadge(movement.to_status)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">
+                              {movementTypes.find(t => t.value === movement.movement_type)?.label || movement.movement_type}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {new Date(movement.movement_date).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell className="max-w-[150px] truncate">
+                            {movement.reason || "-"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -648,7 +654,7 @@ export default function StockMovementsPage() {
 
         {/* Movement Form Dialog */}
         <Dialog open={showMovementForm} onOpenChange={setShowMovementForm}>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Record Movement</DialogTitle>
             </DialogHeader>
@@ -665,7 +671,7 @@ export default function StockMovementsPage() {
                 {scannedProduct && (
                   <div className="mt-2 p-2 bg-green-50 rounded text-sm">
                     <p className="font-medium">Scanned Product:</p>
-                    <p>ID: {scannedProduct.id}</p>
+                    <p className="truncate">ID: {scannedProduct.id}</p>
                     <p>Weight: {scannedProduct.weight_kg}kg</p>
                     <p>Status: {scannedProduct.status}</p>
                   </div>
@@ -738,7 +744,7 @@ export default function StockMovementsPage() {
                 />
               </div>
 
-              <div className="flex space-x-2 pt-4">
+              <div className="flex flex-col sm:flex-row gap-2 pt-4">
                 <Button 
                   type="button" 
                   variant="outline" 
@@ -746,11 +752,11 @@ export default function StockMovementsPage() {
                     setShowMovementForm(false)
                     setScannedProduct(null)
                   }}
-                  className="flex-1"
+                  className="w-full"
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={isSubmitting} className="flex-1">
+                <Button type="submit" disabled={isSubmitting} className="w-full">
                   {isSubmitting ? "Recording..." : "Record Movement"}
                 </Button>
               </div>

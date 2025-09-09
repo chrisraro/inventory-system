@@ -20,11 +20,11 @@ export async function GET(request: NextRequest) {
     const productId = qrCode.toUpperCase()
 
     // Check if product exists with this QR code
+    // For stock movements, allow any authenticated user to access any product
     const { data: product, error } = await supabase
       .from('products_simplified')
       .select('*')
       .eq('qr_code', productId)
-      .eq('user_id', user.id)
       .single()
 
     if (error && error.code !== 'PGRST116') {
