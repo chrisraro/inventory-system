@@ -24,6 +24,7 @@ export default function AddItemPage() {
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [qrCodeFromUrl, setQrCodeFromUrl] = useState<string | null>(null)
+  const [manualQrInput, setManualQrInput] = useState("")
   const [showScanner, setShowScanner] = useState(false)
   const [isScanning, setIsScanning] = useState(false)
   const [cameraActive, setCameraActive] = useState(false)
@@ -43,7 +44,9 @@ export default function AddItemPage() {
   useEffect(() => {
     const qrParam = searchParams.get('qr')
     if (qrParam) {
-      setQrCodeFromUrl(qrParam)
+      const cleanQR = qrParam.trim().toUpperCase().replace('LPG-', '')
+      setQrCodeFromUrl(cleanQR)
+      setManualQrInput(cleanQR)
     }
   }, [searchParams])
 
@@ -69,12 +72,9 @@ export default function AddItemPage() {
         streamRef.current = stream
         setCameraActive(true)
         
-        videoRef.current.play().catch(console.error)
-        
-        // Start QR scanning after a short delay
-        setTimeout(() => {
-          startQRScanning()
-        }, 1000)
+        // Play video and start scanning
+        await videoRef.current.play()
+        startQRScanning()
       }
     } catch (error) {
       console.error("Camera error:", error)
@@ -93,11 +93,9 @@ export default function AddItemPage() {
           streamRef.current = fallbackStream
           setCameraActive(true)
           
-          videoRef.current.play().catch(console.error)
-          
-          setTimeout(() => {
-            startQRScanning()
-          }, 1000)
+          // Play video and start scanning
+          await videoRef.current.play()
+          startQRScanning()
         }
       } catch (fallbackError) {
         console.error("Fallback camera error:", fallbackError)
@@ -174,6 +172,7 @@ export default function AddItemPage() {
     
     // Set the QR code
     setQrCodeFromUrl(cleanQRData)
+    setManualQrInput(cleanQRData)
     setShowScanner(false)
     stopCamera()
     
@@ -183,10 +182,11 @@ export default function AddItemPage() {
     })
   }
 
-  const handleManualQRInput = (e: React.FormEvent) => {
+  const handleManualQRSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (qrCodeFromUrl) {
-      setShowScanner(false)
+    if (manualQrInput.trim()) {
+      const cleanQR = manualQrInput.trim().toUpperCase().replace('LPG-', '')
+      setQrCodeFromUrl(cleanQR)
     }
   }
 
@@ -209,6 +209,7 @@ export default function AddItemPage() {
           description: "QR code is required. Please scan a QR code first.",
           variant: "destructive",
         })
+        setLoading(false)
         return
       }
 
@@ -218,6 +219,7 @@ export default function AddItemPage() {
           description: "Please fill in cylinder weight and unit cost",
           variant: "destructive",
         })
+        setLoading(false)
         return
       }
 
@@ -240,6 +242,7 @@ export default function AddItemPage() {
             description: "Please run the database migration script in Supabase SQL Editor first.",
             variant: "destructive",
           })
+          setLoading(false)
           return
         }
       }
@@ -256,6 +259,15 @@ export default function AddItemPage() {
         description: `${formData.weight_kg}kg LPG Cylinder added successfully (ID: LPG-${qrCodeFromUrl})`,
       })
 
+      // Reset form and navigate
+      setQrCodeFromUrl(null)
+      setManualQrInput("")
+      setFormData({
+        weight_kg: "",
+        unit_cost: "",
+        supplier: "",
+      })
+      
       router.push("/")
     } catch (error) {
       console.error("Error adding product:", error)
@@ -308,16 +320,21 @@ export default function AddItemPage() {
                       <div className="flex space-x-2">
                         <Input
                           id="qr_code"
-                          value={qrCodeFromUrl || ""}
-                          onChange={(e) => setQrCodeFromUrl(e.target.value)}
+                          value={manualQrInput}
+                          onChange={(e) => setManualQrInput(e.target.value)}
                           placeholder="Scan QR code or enter manually"
                           required
                         />
-                        <Button type="button" onClick={() => setShowScanner(!showScanner)}>
+                        <Button type="button" onClick={() => setShowScanner(!showScanner)} variant="outline">
                           <QrCode className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
+
+                    {/* Manual QR Submit Button */}
+                    <Button type="button" onClick={handleManualQRSubmit} className="w-full" disabled={!manualQrInput.trim()}>
+                      Use QR Code
+                    </Button>
 
                     {/* QR Scanner */}
                     {showScanner && (
@@ -358,12 +375,12 @@ export default function AddItemPage() {
                         
                         <div className="flex justify-center space-x-2">
                           {!cameraActive ? (
-                            <Button type="button" onClick={startCamera}>
+                            <Button type="button" onClick={startCamera} className="w-full">
                               <Camera className="h-4 w-4 mr-2" />
                               Start Camera
                             </Button>
                           ) : (
-                            <Button type="button" onClick={stopCamera} variant="outline">
+                            <Button type="button" onClick={stopCamera} variant="outline" className="w-full">
                               <CameraOff className="h-4 w-4 mr-2" />
                               Stop Camera
                             </Button>
@@ -392,7 +409,10 @@ export default function AddItemPage() {
                         type="button" 
                         variant="outline" 
                         size="sm" 
-                        onClick={() => setQrCodeFromUrl(null)}
+                        onClick={() => {
+                          setQrCodeFromUrl(null)
+                          setManualQrInput("")
+                        }}
                       >
                         Rescan QR Code
                       </Button>
