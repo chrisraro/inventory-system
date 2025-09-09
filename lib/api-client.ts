@@ -26,13 +26,17 @@ export async function authenticatedFetch(url: string, options: RequestInit = {})
     throw new Error('No authentication token available')
   }
 
+  // Ensure the URL is correctly formed
+  const baseUrl = typeof window !== 'undefined' ? '' : 'http://localhost:3000'
+  const fullUrl = url.startsWith('/') ? `${baseUrl}${url}` : url
+
   const headers = {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${token}`,
     ...options.headers,
   }
 
-  return fetch(url, {
+  return fetch(fullUrl, {
     ...options,
     headers,
   })

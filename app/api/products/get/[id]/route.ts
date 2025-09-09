@@ -7,8 +7,11 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 // Create a Supabase client with service role for API routes
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> | { id: string } }) {
   try {
+    // Resolve params if it's a Promise
+    const resolvedParams = params instanceof Promise ? await params : params;
+    
     // Get the authorization header
     const authHeader = request.headers.get('authorization')
     if (!authHeader?.startsWith('Bearer ')) {
@@ -37,26 +40,30 @@ export async function GET(request: NextRequest) {
 
     const isAdmin = profile?.role === 'admin'
 
-    // Get products from the simplified table
+    // Get product from the simplified table
     let query = supabaseAdmin
       .from('products_simplified')
       .select('*')
-      .order('created_at', { ascending: false })
+      .eq('id', resolvedParams.id)
 
     // For non-admin users, filter by their own products
     if (!isAdmin) {
       query = query.eq('user_id', user.id)
     }
 
-    const { data: products, error } = await query
+    const { data: product, error } = await query.single()
 
     if (error) {
       console.error('Database error:', error)
-      return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 })
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+    }
+
+    if (!product) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 })
     }
 
     // Map to maintain compatibility with existing UI
-    const mappedProducts = products?.map((product: any) => ({
+    const mappedProduct = {
       ...product,
       // Map simplified fields to expected UI fields
       name: `${product.weight_kg}kg LPG Cylinder`,
@@ -68,9 +75,9 @@ export async function GET(request: NextRequest) {
       unit_type: 'cylinder',
       min_threshold: 0,
       max_threshold: 1,
-    })) || []
+    }
 
-    return NextResponse.json({ products: mappedProducts })
+    return NextResponse.json({ product: mappedProduct })
 
   } catch (error) {
     console.error('API error:', error)

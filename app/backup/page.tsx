@@ -23,7 +23,7 @@ import DashboardLayout from "@/components/layout/dashboard-layout"
 import ProtectedRoute from "@/components/auth/protected-route"
 import { useProducts } from "@/hooks/use-products"
 import { formatCurrency } from "@/lib/currency"
-import { getStockMovements, getQRCodes, supabase } from "@/lib/supabase"
+import { getStockMovements, supabase } from "@/lib/supabase"
 
 export default function BackupPage() {
   const { products } = useProducts()
@@ -69,10 +69,6 @@ export default function BackupPage() {
       const { data: stockMovements, error: stockError } = await getStockMovements()
       if (stockError) throw stockError
 
-      setBackupProgress(30)
-      const { data: qrCodes, error: qrError } = await getQRCodes()
-      if (qrError) throw qrError
-
       setBackupProgress(50)
       // Get any settings from a settings table if it exists
       const { data: settings, error: settingsError } = await supabase
@@ -89,17 +85,14 @@ export default function BackupPage() {
         version: "1.0.0",
         products: products,
         stockMovements: stockMovements || [],
-        qrCodes: qrCodes || [],
         settings: settingsData,
         metadata: {
           totalProducts: products.length,
           totalStockMovements: stockMovements?.length || 0,
-          totalQRCodes: qrCodes?.length || 0,
           totalValue: products.reduce((sum, p) => sum + (p.quantity || 0) * (p.unit_cost || 0), 0),
           backupSize: `${Math.round(JSON.stringify({
             products,
             stockMovements: stockMovements || [],
-            qrCodes: qrCodes || [],
             settings: settingsData
           }).length / 1024)}KB`,
         },
@@ -114,7 +107,7 @@ export default function BackupPage() {
           file_size_kb: Math.round(JSON.stringify(backupData).length / 1024),
           total_products: products.length,
           total_stock_movements: stockMovements?.length || 0,
-          total_qr_codes: qrCodes?.length || 0,
+          total_qr_codes: 0, // QR codes not used in simplified system
         }])
 
       if (logError) {
@@ -199,25 +192,6 @@ export default function BackupPage() {
             .insert(backupData.stockMovements)
 
           if (insertMovementsError) throw insertMovementsError
-        }
-      }
-
-      setRestoreProgress(80)
-      // Restore QR codes if they exist
-      if (backupData.qrCodes && Array.isArray(backupData.qrCodes)) {
-        const { error: deleteQRError } = await supabase
-          .from("qr_codes")
-          .delete()
-          .neq("id", "")
-
-        if (deleteQRError) throw deleteQRError
-
-        if (backupData.qrCodes.length > 0) {
-          const { error: insertQRError } = await supabase
-            .from("qr_codes")
-            .insert(backupData.qrCodes)
-
-          if (insertQRError) throw insertQRError
         }
       }
 
@@ -461,7 +435,6 @@ export default function BackupPage() {
                 <ul className="list-disc list-inside space-y-1 ml-4">
                   <li>All product inventory data</li>
                   <li>Complete stock movement history</li>
-                  <li>QR code associations and data</li>
                   <li>System settings and preferences</li>
                   <li>Database metadata and timestamps</li>
                 </ul>

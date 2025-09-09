@@ -192,12 +192,6 @@ export default function QRScannerPage() {
     }
   }
 
-  const navigateToEditProduct = () => {
-    if (scanResult?.product?.id) {
-      router.push(`/edit-item/${scanResult.product.id}`)
-    }
-  }
-
   useEffect(() => {
     return () => {
       stopCamera()
@@ -344,9 +338,9 @@ export default function QRScannerPage() {
                       <p className="text-gray-600">Stock: {scanResult.product.current_stock}</p>
                     </div>
                     <div className="flex space-x-2">
-                      <Button onClick={navigateToEditProduct} className="flex-1 bg-green-600 hover:bg-green-700">
+                      <Button onClick={() => router.push('/stock-movements')} className="flex-1 bg-green-600 hover:bg-green-700">
                         <Package className="h-4 w-4 mr-2" />
-                        View/Edit Product
+                        Manage Status
                       </Button>
                     </div>
                   </div>

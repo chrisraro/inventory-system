@@ -74,7 +74,6 @@ BEGIN
     IF user_role = 'stockman' AND permission_name IN (
         'view_dashboard',
         'add_product',
-        'edit_product',
         'stock_movements',
         'view_reports'
     ) THEN
@@ -106,9 +105,6 @@ CREATE POLICY "Authenticated users can view products" ON products
 
 CREATE POLICY "Admin can insert products" ON products
     FOR INSERT WITH CHECK (public.has_permission('add_product'));
-
-CREATE POLICY "Admin can update products" ON products
-    FOR UPDATE USING (public.has_permission('edit_product'));
 
 CREATE POLICY "Admin can delete products" ON products
     FOR DELETE USING (public.has_permission('delete_product'));

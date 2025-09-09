@@ -9,19 +9,24 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
 // Helper function to authenticate request
 async function authenticateRequest(request: NextRequest) {
-  const authHeader = request.headers.get('authorization')
-  if (!authHeader?.startsWith('Bearer ')) {
-    return { user: null, error: 'No valid token' }
-  }
+  try {
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return { user: null, error: 'No valid token' }
+    }
 
-  const token = authHeader.substring(7)
-  
-  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
-  if (authError || !user) {
-    return { user: null, error: 'Invalid token' }
+    const token = authHeader.substring(7)
+    
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
+    if (authError || !user) {
+      return { user: null, error: 'Invalid token' }
+    }
+    
+    return { user, error: null }
+  } catch (error) {
+    console.error('Authentication error:', error)
+    return { user: null, error: 'Authentication failed' }
   }
-  
-  return { user, error: null }
 }
 
 export async function GET(request: NextRequest) {
@@ -37,6 +42,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: `Unauthorized - ${authError}` }, { status: 401 })
     }
 
+    // Check if user is admin
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from('user_profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (profileError) {
+      console.error('Profile fetch error:', profileError)
+      return NextResponse.json({ error: 'Failed to fetch user profile' }, { status: 500 })
+    }
+
+    const isAdmin = profile?.role === 'admin'
+
     let query = supabaseAdmin
       .from('stock_movements_simplified')
       .select(`
@@ -50,8 +69,12 @@ export async function GET(request: NextRequest) {
           supplier
         )
       `)
-      .eq('created_by', user.id)
       .order('created_at', { ascending: false })
+
+    // For non-admin users, filter by their own movements
+    if (!isAdmin) {
+      query = query.eq('created_by', user.id)
+    }
 
     // Filter by product if specified
     if (productId) {
@@ -109,12 +132,30 @@ export async function POST(request: NextRequest) {
     }
 
     // Get current product to check its current status
-    const { data: product, error: productError } = await supabaseAdmin
+    // For admins, allow access to any product; for regular users, only their own products
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from('user_profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (profileError) {
+      console.error('Profile fetch error:', profileError)
+      return NextResponse.json({ error: 'Failed to fetch user profile' }, { status: 500 })
+    }
+
+    const isAdmin = profile?.role === 'admin'
+
+    let productQuery = supabaseAdmin
       .from('products_simplified')
       .select('id, status')
       .eq('id', movementData.product_id)
-      .eq('user_id', user.id)
-      .single()
+
+    if (!isAdmin) {
+      productQuery = productQuery.eq('user_id', user.id)
+    }
+
+    const { data: product, error: productError } = await productQuery.single()
 
     if (productError || !product) {
       return NextResponse.json({ error: 'Product not found or access denied' }, { status: 404 })
@@ -167,14 +208,14 @@ export async function POST(request: NextRequest) {
 // GET cylinder summary statistics
 export async function OPTIONS(request: NextRequest) {
   try {
-    // Check if user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // Authenticate request
+    const { user, error: authError } = await authenticateRequest(request)
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: `Unauthorized - ${authError}` }, { status: 401 })
     }
 
     // Get cylinder statistics using the database function
-    const { data: stats, error } = await supabase
+    const { data: stats, error } = await supabaseAdmin
       .rpc('get_cylinder_summary', { user_uuid: user.id })
 
     if (error) {

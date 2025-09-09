@@ -109,7 +109,10 @@ export default function StockMovementsPage() {
         }
       }
       
-      if (!response.ok) throw new Error('Failed to fetch movements')
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `Failed to fetch movements (Status: ${response.status})`)
+      }
       
       const { movements } = await response.json()
       setMovements(movements || [])
@@ -117,7 +120,7 @@ export default function StockMovementsPage() {
       console.error("Error fetching movements:", error)
       toast({
         title: "Error",
-        description: "Failed to fetch stock movements",
+        description: error instanceof Error ? error.message : "Failed to fetch stock movements",
         variant: "destructive",
       })
     } finally {
@@ -160,7 +163,7 @@ export default function StockMovementsPage() {
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to create movement')
+        throw new Error(errorData.error || `Failed to create movement (Status: ${response.status})`)
       }
 
       toast({

@@ -18,7 +18,7 @@ A comprehensive inventory management system specifically designed for LPG (Lique
 - Session management with database-backed user profiles
 
 ### 📦 Inventory Management
-- Add, edit, and delete LPG products
+- Add and delete LPG products
 - Support for various LPG container types (Cylinders, Tanks, Bottles, Canisters)
 - Real-time stock tracking with low stock alerts
 - Expiration date monitoring for safety compliance
@@ -71,15 +71,15 @@ Users must be created through Supabase Auth. The system supports:
 ## Getting Started
 
 1. **Clone the repository**
-   \`\`\`bash
+   ```bash
    git clone <repository-url>
    cd petrogreen
-   \`\`\`
+   ```
 
 2. **Install dependencies**
-   \`\`\`bash
+   ```bash
    npm install
-   \`\`\`
+   ```
 
 3. **Environment Setup** (Required)
    ```bash
@@ -98,15 +98,14 @@ Users must be created through Supabase Auth. The system supports:
 
 ## Database Configuration
 
-Ensure your Supabase database is properly configured with the necessary tables and Row Level Security policies. The application requires tables for products, stock_movements, qr_codes, and settings.
+Ensure your Supabase database is properly configured with the necessary tables and Row Level Security policies. The application requires tables for products_simplified, stock_movements_simplified, and settings.
 
 ## LPG Industry Features
 
 ### Product Types
-- 5kg, 12.5kg, 19kg, 45kg LPG Cylinders
-- Portable Canisters (2.5kg)
-- Bulk Tanks and Industrial Containers
-- Custom unit types support
+- 11kg, 22kg, 50kg LPG Cylinders (Residential, Small Business, Industrial)
+- Individual cylinder tracking with QR codes
+- Status-based inventory management (Available, Sold, Maintenance, Damaged, Missing)
 
 ### Suppliers
 - Shell Gas
@@ -126,11 +125,10 @@ Ensure your Supabase database is properly configured with the necessary tables a
 
 ## Project Structure
 
-\`\`\`
+```
 petrogreen/
 ├── app/                    # Next.js app directory
 │   ├── add-item/          # Add product page
-│   ├── edit-item/         # Edit product page
 │   ├── reports/           # Reports and analytics
 │   ├── settings/          # System settings
 │   ├── stock-movements/   # Stock movement tracking
@@ -144,7 +142,7 @@ petrogreen/
 ├── hooks/                # Custom React hooks
 ├── lib/                  # Utility functions
 └── public/               # Static assets
-\`\`\`
+```
 
 ## Contributing
 
@@ -166,11 +164,12 @@ For support and questions, please contact:
 
 ## Roadmap
 
-- [ ] Mobile app development
+- [x] QR-based cylinder tracking system
+- [x] Status-based inventory management
+- [x] Real-time stock movements
 - [ ] Advanced analytics and forecasting
 - [ ] Multi-location support
 - [ ] Integration with accounting systems
-- [ ] Barcode scanning functionality
 - [ ] Real-time notifications
 - [ ] API development for third-party integrations
 

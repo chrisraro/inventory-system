@@ -15,7 +15,6 @@ import {
   Plus,
   Fuel,
   Calendar,
-  Edit,
   Trash2,
   Scale,
 } from "lucide-react"
@@ -246,13 +245,6 @@ export default function Dashboard() {
                           </div>
                           <Badge className={getStatusColor(product.status)}>{getStatusText(product.status)}</Badge>
                           <div className="flex items-center space-x-2">
-                            {hasPermission("edit_product") && (
-                              <Link href={`/edit-item/${product.id}`}>
-                                <Button variant="ghost" size="sm">
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                              </Link>
-                            )}
                             {hasPermission("delete_product") && (
                               <Button
                                 variant="ghost"

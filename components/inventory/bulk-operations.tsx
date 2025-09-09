@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { supabase, type Product } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
-import { Package, Trash2, Edit, Download } from "lucide-react"
+import { Package, Trash2, Download } from "lucide-react"
 
 interface BulkOperationsProps {
   products: Product[]
@@ -65,13 +65,13 @@ export default function BulkOperations({
         const product = products.find((p) => p.id === productId)
         if (!product) continue
 
-        let newQuantity = product.quantity
+        let newQuantity = product.quantity || 0
         switch (adjustmentType) {
           case "add":
-            newQuantity = product.quantity + adjustment
+            newQuantity = (product.quantity || 0) + adjustment
             break
           case "subtract":
-            newQuantity = Math.max(0, product.quantity - adjustment)
+            newQuantity = Math.max(0, (product.quantity || 0) - adjustment)
             break
           case "set":
             newQuantity = adjustment
@@ -86,10 +86,10 @@ export default function BulkOperations({
         logs.push({
           product_id: productId,
           action: "stock_adjustment",
-          quantity_change: newQuantity - product.quantity,
-          old_quantity: product.quantity,
+          quantity_change: newQuantity - (product.quantity || 0),
+          old_quantity: product.quantity || 0,
           new_quantity: newQuantity,
-          value_change: (newQuantity - product.quantity) * product.unit_cost,
+          value_change: (newQuantity - (product.quantity || 0)) * (product.unit_cost || 0),
           remarks: remarks || `Bulk ${adjustmentType}: ${adjustment}`,
         })
       }
@@ -186,7 +186,7 @@ export default function BulkOperations({
         product.unit_type,
         product.quantity,
         product.unit_cost,
-        product.quantity * product.unit_cost,
+        (product.quantity || 0) * (product.unit_cost || 0),
         product.remarks || "",
       ])
 
@@ -248,7 +248,7 @@ export default function BulkOperations({
                 onClick={() => setOperation(operation === "adjust" ? "" : "adjust")}
                 className={operation === "adjust" ? "bg-primary hover:bg-primary/90" : "hover:bg-primary/10"}
               >
-                <Edit className="h-4 w-4 mr-2" />
+                <Package className="h-4 w-4 mr-2" />
                 Adjust Stock
               </Button>
               <Button

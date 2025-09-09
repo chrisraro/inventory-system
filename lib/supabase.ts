@@ -51,6 +51,7 @@ export type StockMovement = {
 // Supabase configuration
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ""
 
 // Create Supabase client
 export const supabase = createClient(supabaseUrl, supabaseKey)
@@ -60,6 +61,9 @@ if (!supabaseUrl || !supabaseKey) {
   console.error("Supabase configuration missing. Please add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your environment variables.")
   throw new Error("Supabase configuration is required for production mode")
 }
+
+// Create Supabase admin client for server-side operations
+export const supabaseAdmin = supabaseServiceKey ? createClient(supabaseUrl, supabaseServiceKey) : null
 
 
 
@@ -106,53 +110,46 @@ export const getCurrentUserProfile = async () => {
 
 // Product functions
 export const getProducts = async () => {
-  const { data, error } = await supabase.from("products").select("*").order("created_at", { ascending: false })
+  const { data, error } = await supabase.from("products_simplified").select("*").order("created_at", { ascending: false })
   
   // Map database fields to UI expected fields for backward compatibility
   const mappedData = data?.map(product => ({
     ...product,
-    quantity: product.current_stock, // Map current_stock to quantity for UI
+    quantity: 1, // For simplified system, each product is 1 unit
     price_per_unit: product.unit_cost, // Map unit_cost to price_per_unit for backward compatibility
+    current_stock: product.status === 'available' ? 1 : 0, // Available = 1, others = 0
   }))
   
   return { data: mappedData, error }
 }
 
 export const getProduct = async (id: string) => {
-  const { data, error } = await supabase.from("products").select("*").eq("id", id).single()
+  const { data, error } = await supabase.from("products_simplified").select("*").eq("id", id).single()
   
   // Map database fields to UI expected fields for backward compatibility
   const mappedData = data ? {
     ...data,
-    quantity: data.current_stock, // Map current_stock to quantity for UI
+    quantity: 1, // For simplified system, each product is 1 unit
     price_per_unit: data.unit_cost, // Map unit_cost to price_per_unit for backward compatibility
+    current_stock: data.status === 'available' ? 1 : 0, // Available = 1, others = 0
   } : null
   
   return { data: mappedData, error }
 }
 
 export const createProduct = async (product: any) => {
-  // Map form fields to database schema
+  // For simplified system, we expect qr_code, weight_kg, unit_cost, supplier
   const productData = {
-    ...product,
-    // Map quantity to current_stock for database
-    current_stock: product.quantity || 0,
-    // Map price_per_unit to unit_cost for database
-    unit_cost: product.price_per_unit || product.unit_cost || 0,
-    // Remove quantity and price_per_unit to avoid field conflicts
-    quantity: undefined,
-    price_per_unit: undefined,
+    id: `LPG-${product.qr_code.toUpperCase().replace('LPG-', '')}`,
+    qr_code: product.qr_code.toUpperCase().replace('LPG-', ''),
+    weight_kg: parseFloat(product.weight_kg),
+    unit_cost: parseFloat(product.unit_cost),
+    supplier: product.supplier || null,
+    status: 'available', // Default status for new cylinders
   }
 
-  // Remove undefined fields
-  Object.keys(productData).forEach(key => {
-    if (productData[key] === undefined) {
-      delete productData[key]
-    }
-  })
-
   const { data, error } = await supabase
-    .from("products")
+    .from("products_simplified")
     .insert([productData])
     .select()
     .single()
@@ -161,24 +158,20 @@ export const createProduct = async (product: any) => {
 }
 
 export const updateProduct = async (id: string, updates: any) => {
-  // Map form fields to database schema
+  // For simplified system, we only allow updating supplier
   const updateData = {
     ...updates,
     updated_at: new Date().toISOString(),
   }
   
-  // Map UI fields to database fields if they exist
-  if (updates.quantity !== undefined) {
-    updateData.current_stock = updates.quantity
-    delete updateData.quantity
-  }
-  if (updates.price_per_unit !== undefined) {
-    updateData.unit_cost = updates.price_per_unit
-    delete updateData.price_per_unit
-  }
+  // Remove fields that shouldn't be updated
+  delete updateData.quantity
+  delete updateData.price_per_unit
+  delete updateData.current_stock
+  delete updateData.status
 
   const { data, error } = await supabase
-    .from("products")
+    .from("products_simplified")
     .update(updateData)
     .eq("id", id)
     .select()
@@ -187,28 +180,32 @@ export const updateProduct = async (id: string, updates: any) => {
   // Map database fields back to UI fields for response
   const mappedData = data ? {
     ...data,
-    quantity: data.current_stock,
+    quantity: 1,
     price_per_unit: data.unit_cost,
+    current_stock: data.status === 'available' ? 1 : 0,
   } : null
 
   return { data: mappedData, error }
 }
 
 export const deleteProduct = async (id: string) => {
-  const { error } = await supabase.from("products").delete().eq("id", id)
+  const { error } = await supabase.from("products_simplified").delete().eq("id", id)
   return { error }
 }
 
 // Stock movement functions
 export const getStockMovements = async (productId?: string) => {
   let query = supabase
-    .from("stock_movements")
+    .from("stock_movements_simplified")
     .select(`
       *,
-      products (
-        name,
-        brand,
-        weight_kg
+      products_simplified (
+        id,
+        qr_code,
+        weight_kg,
+        status,
+        unit_cost,
+        supplier
       )
     `)
     .order("created_at", { ascending: false })
@@ -223,139 +220,33 @@ export const getStockMovements = async (productId?: string) => {
 
 export const createStockMovement = async (movement: any) => {
   const { data, error } = await supabase
-    .from("stock_movements")
+    .from("stock_movements_simplified")
     .insert([
       {
         ...movement,
-        created_by: "admin",
+        created_by: "admin", // This should be replaced with actual user ID
       },
     ])
-    .select()
-    .single()
-
-  return { data, error }
-}
-
-// QR Code functions
-export const getQRCodes = async () => {
-  const { data, error } = await supabase
-    .from("qr_codes")
     .select(`
       *,
-      products (
-        name,
-        brand,
+      products_simplified (
+        id,
+        qr_code,
         weight_kg,
-        sku
+        status,
+        unit_cost,
+        supplier
       )
     `)
-    .order("created_at", { ascending: false })
-
-  return { data, error }
-}
-
-export const generateQRCode = async (productId: string) => {
-  const { data: product, error: productError } = await supabase
-    .from("products")
-    .select("*")
-    .eq("id", productId)
-    .single()
-
-  if (productError || !product) {
-    return { data: null, error: productError || { message: "Product not found" } }
-  }
-
-  const qrData = `LPG-${product.brand?.substring(0, 3).toUpperCase()}-${product.weight_kg}KG-${productId}`
-
-  const { data, error } = await supabase
-    .from("qr_codes")
-    .insert([
-      {
-        product_id: productId,
-        qr_data: qrData,
-      },
-    ])
-    .select()
     .single()
 
   return { data, error }
-}
-
-// Create QR Code with provided data (used by hooks/use-qr-codes)
-export const createQRCode = async (productId: string, qrData: string, metadata?: any) => {
-  const insertPayload: any = {
-    product_id: productId,
-    qr_data: qrData,
-  }
-  if (metadata) {
-    if (typeof metadata.qr_code_url === "string") insertPayload.qr_code_url = metadata.qr_code_url
-    if (typeof metadata.is_active === "boolean") insertPayload.is_active = metadata.is_active
-  }
-
-  const { data, error } = await supabase.from("qr_codes").insert([insertPayload]).select().single()
-  return { data, error }
-}
-
-export const deleteQRCode = async (id: string) => {
-  const { error } = await supabase.from("qr_codes").delete().eq("id", id)
-  return { error }
-}
-
-export const parseQRData = (qrData: string) => {
-  // Expected format: LPG-BRAND-WEIGHT-ID
-  const parts = qrData.split("-")
-  if (parts.length >= 4 && parts[0] === "LPG") {
-    return {
-      type: "LPG",
-      brand: parts[1],
-      weight: parts[2],
-      productId: parts.slice(3).join("-"),
-    }
-  }
-  return null
-}
-
-// Backward compatible alias expected by hooks/use-qr-codes
-export const parseQRCodeData = (qrData: string) => parseQRData(qrData)
-
-// Generate QR code data for products
-export const generateQRCodeData = (product: Product): string => {
-  if (!product.brand || !product.weight_kg || !product.id) {
-    throw new Error("Product missing required fields for QR generation")
-  }
-  return `LPG-${product.brand.substring(0, 3).toUpperCase()}-${product.weight_kg}KG-${product.id}`
-}
-
-// Validate product data
-export const validateProduct = (product: any): { isValid: boolean; errors: string[] } => {
-  return validateLPGProduct(product)
-}
-
-// Get product by QR data
-export const getProductByQRData = async (qrData: string) => {
-  const { data: qrCode, error: qrError } = await supabase
-    .from("qr_codes")
-    .select("product_id")
-    .eq("qr_data", qrData)
-    .single()
-
-  if (qrError || !qrCode) {
-    return { data: null, error: qrError || { message: "QR code not found" } }
-  }
-
-  const { data: product, error: productError } = await supabase
-    .from("products")
-    .select("*")
-    .eq("id", qrCode.product_id)
-    .single()
-
-  return { data: product, error: productError }
 }
 
 // Test connection
 export const testConnection = async (): Promise<{ success: boolean; message: string }> => {
   try {
-    const { data, error } = await supabase.from("products").select("count").limit(1)
+    const { data, error } = await supabase.from("products_simplified").select("count").limit(1)
 
     if (error) {
       return { success: false, message: `Connection failed: ${error.message}` }
@@ -370,12 +261,12 @@ export const testConnection = async (): Promise<{ success: boolean; message: str
 // Analytics functions
 export const getInventoryAnalytics = async () => {
   try {
-    const { data: products, error: productsError } = await supabase.from("products").select("*")
+    const { data: products, error: productsError } = await supabase.from("products_simplified").select("*")
 
     if (productsError) throw productsError
 
     const { data: movements, error: movementsError } = await supabase
-      .from("stock_movements")
+      .from("stock_movements_simplified")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(5)
@@ -383,9 +274,9 @@ export const getInventoryAnalytics = async () => {
     if (movementsError) throw movementsError
 
     const totalProducts = products?.length || 0
-    const totalStock = products?.reduce((sum, p) => sum + (p.quantity || 0), 0) || 0
-    const lowStockItems = products?.filter((p) => (p.quantity || 0) <= (p.min_threshold || 0)).length || 0
-    const totalValue = products?.reduce((sum, p) => sum + (p.quantity || 0) * (p.unit_cost || 0), 0) || 0
+    const totalStock = products?.reduce((sum, p) => sum + (p.status === 'available' ? 1 : 0), 0) || 0
+    const lowStockItems = 0 // Not applicable in simplified system
+    const totalValue = products?.reduce((sum, p) => sum + (p.unit_cost || 0), 0) || 0
 
     return {
       data: {
@@ -414,12 +305,7 @@ export default {
   deleteProduct,
   getStockMovements,
   createStockMovement,
-  getQRCodes,
-  generateQRCode,
-  deleteQRCode,
-  parseQRData,
   validateProduct,
-  getProductByQRData,
   testConnection,
   getInventoryAnalytics,
 }

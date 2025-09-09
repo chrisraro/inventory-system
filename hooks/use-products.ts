@@ -31,10 +31,10 @@ interface UseProductsReturn {
   loading: boolean
   error: string | null
   refetch: () => Promise<void>
+  getProduct: (id: string) => Promise<{ product: Product | null; error: string | null }>
   addProduct: (
     product: { qr_code: string; weight_kg: number; unit_cost: number; supplier?: string }
   ) => Promise<{ success: boolean; error?: string }>
-  updateProduct: (id: string, product: Partial<Product>) => Promise<{ success: boolean; error?: string }>
   deleteProduct: (id: string) => Promise<{ success: boolean; error?: string }>
 }
 
@@ -64,6 +64,24 @@ export function useProducts(): UseProductsReturn {
     }
   }
 
+  const getProduct = async (id: string): Promise<{ product: Product | null; error: string | null }> => {
+    try {
+      const response = await authenticatedGet(`/api/products/get/${id}`)
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          return { product: null, error: 'Product not found' }
+        }
+        throw new Error('Failed to fetch product')
+      }
+      
+      const { product } = await response.json()
+      return { product, error: null }
+    } catch (err) {
+      return { product: null, error: err instanceof Error ? err.message : "Failed to fetch product" }
+    }
+  }
+
   const addProduct = async (
     productData: { qr_code: string; weight_kg: number; unit_cost: number; supplier?: string }
   ): Promise<{ success: boolean; error?: string }> => {
@@ -79,20 +97,6 @@ export function useProducts(): UseProductsReturn {
       return { success: true }
     } catch (err) {
       return { success: false, error: err instanceof Error ? err.message : "Failed to add product" }
-    }
-  }
-
-  const updateProduct = async (
-    id: string,
-    productData: Partial<Product>
-  ): Promise<{ success: boolean; error?: string }> => {
-    try {
-      // For now, we don't have an update API endpoint, so this is a placeholder
-      // In the simplified system, most updates would be status changes via stock movements
-      console.warn('Product update not implemented in simplified system. Use stock movements for status changes.')
-      return { success: false, error: 'Product updates not supported in simplified system' }
-    } catch (err) {
-      return { success: false, error: err instanceof Error ? err.message : "Failed to update product" }
     }
   }
 
@@ -115,8 +119,8 @@ export function useProducts(): UseProductsReturn {
     loading,
     error,
     refetch: fetchProducts,
+    getProduct,
     addProduct,
-    updateProduct,
     deleteProduct,
   }
 }

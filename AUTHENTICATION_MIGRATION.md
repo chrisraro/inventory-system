@@ -121,7 +121,6 @@ CREATE TABLE user_profiles (
 |-----------|-------|---------------|
 | view_dashboard | ✅ | ✅ |
 | add_product | ✅ | ✅ |
-| edit_product | ✅ | ✅ |
 | delete_product | ✅ | ❌ |
 | stock_movements | ✅ | ✅ |
 | view_reports | ✅ | ✅ |
