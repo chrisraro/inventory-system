@@ -90,7 +90,18 @@ export function useProducts(): UseProductsReturn {
       
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to create product')
+        
+        // Handle specific error cases
+        if (response.status === 409) {
+          // Duplicate entry error
+          return { success: false, error: `A product with QR code "${productData.qr_code}" already exists in your inventory.` }
+        } else if (response.status === 503 && errorData.code === 'TABLES_NOT_FOUND') {
+          // Database setup required
+          return { success: false, error: "Database setup required. Please run the database migration script in Supabase SQL Editor first." }
+        } else {
+          // General error
+          throw new Error(errorData.error || 'Failed to create product')
+        }
       }
 
       await fetchProducts()

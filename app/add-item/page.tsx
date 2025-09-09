@@ -234,22 +234,31 @@ export default function AddItemPage() {
       // Create product using new QR-based system
       const response = await authenticatedPost('/api/products/create', productData)
 
-      if (response.status === 503) {
+      if (!response.ok) {
         const errorData = await response.json()
-        if (errorData.code === 'TABLES_NOT_FOUND') {
+        
+        // Handle specific error cases
+        if (response.status === 409) {
+          // Duplicate entry error
+          toast({
+            title: "Duplicate Product",
+            description: `A product with QR code "${qrCodeFromUrl}" already exists in your inventory.`,
+            variant: "destructive",
+          })
+        } else if (response.status === 503 && errorData.code === 'TABLES_NOT_FOUND') {
+          // Database setup required
           toast({
             title: "Database Setup Required",
             description: "Please run the database migration script in Supabase SQL Editor first.",
             variant: "destructive",
           })
-          setLoading(false)
-          return
+        } else {
+          // General error
+          throw new Error(errorData.error || 'Failed to create product')
         }
-      }
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to create product')
+        
+        setLoading(false)
+        return
       }
 
       const { product } = await response.json()

@@ -1,24 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@supabase/supabase-js'
 
-export async function DELETE(request: NextRequest) {
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+
+// Create a Supabase client with service role for API routes
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
+
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    // Get the product ID from query parameters
-    const url = new URL(request.url)
-    const productId = url.searchParams.get('id')
-
-    if (!productId) {
-      return NextResponse.json({ error: 'Product ID is required' }, { status: 400 })
+    // Get the authorization header
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized - No valid token' }, { status: 401 })
     }
 
-    // Check if user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const token = authHeader.substring(7)
+    
+    // Verify the token and get user
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'Unauthorized - Invalid token' }, { status: 401 })
     }
 
-    // Get user profile to check role
-    const { data: profile, error: profileError } = await supabase
+    // Check if user is admin
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from('user_profiles')
       .select('role')
       .eq('id', user.id)
@@ -32,10 +38,10 @@ export async function DELETE(request: NextRequest) {
     const isAdmin = profile?.role === 'admin'
 
     // Check if product exists and belongs to the user (or user is admin)
-    let query = supabase
+    let query = supabaseAdmin
       .from('products_simplified')
       .select('id, user_id')
-      .eq('id', productId)
+      .eq('id', params.id)
 
     // If user is not admin, ensure they can only access their own products
     if (!isAdmin) {
@@ -57,10 +63,10 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Delete the product
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('products_simplified')
       .delete()
-      .eq('id', productId)
+      .eq('id', params.id)
 
     if (error) {
       console.error('Database error:', error)
