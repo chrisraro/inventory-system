@@ -25,6 +25,7 @@ import { formatCurrency } from "@/lib/currency"
 import { formatWeight } from "@/lib/constants"
 import { useProducts } from "@/hooks/use-products"
 import { useAuth } from "@/contexts/auth-context"
+import { toast } from "@/hooks/use-toast"
 
 export default function Dashboard() {
   const { products, loading, deleteProduct } = useProducts()
@@ -78,12 +79,19 @@ export default function Dashboard() {
   }
 
   const handleDelete = async (id: string, name: string, weight: number) => {
-    // TODO: Replace with proper confirmation dialog
     if (confirm(`Are you sure you want to delete "${formatWeight(weight)} ${name}"?`)) {
       const result = await deleteProduct(id)
       if (!result.success) {
-        // TODO: Replace with proper toast notification
-        console.warn("Delete failed:", result.error || "Failed to delete product")
+        toast({
+          title: "Error",
+          description: result.error || "Failed to delete product",
+          variant: "destructive",
+        })
+      } else {
+        toast({
+          title: "Success",
+          description: "Product deleted successfully",
+        })
       }
     }
   }

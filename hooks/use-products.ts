@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { authenticatedGet, authenticatedPost } from '@/lib/api-client'
+import { authenticatedGet, authenticatedPost, authenticatedDelete } from '@/lib/api-client'
 
 // Simplified Product interface for the new system
 interface Product {
@@ -102,9 +102,15 @@ export function useProducts(): UseProductsReturn {
 
   const deleteProduct = async (id: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      // For now, we don't have a delete API endpoint, so this is a placeholder
-      console.warn('Product deletion not implemented yet')
-      return { success: false, error: 'Product deletion not implemented' }
+      const response = await authenticatedDelete(`/api/products/delete/${id}`)
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to delete product')
+      }
+
+      await fetchProducts()
+      return { success: true }
     } catch (err) {
       return { success: false, error: err instanceof Error ? err.message : "Failed to delete product" }
     }

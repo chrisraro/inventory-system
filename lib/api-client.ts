@@ -58,3 +58,12 @@ export async function authenticatedPost(url: string, data: any): Promise<Respons
     body: JSON.stringify(data),
   })
 }
+
+/**
+ * Helper for DELETE requests
+ */
+export async function authenticatedDelete(url: string): Promise<Response> {
+  return authenticatedFetch(url, {
+    method: 'DELETE',
+  })
+}
