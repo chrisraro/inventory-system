@@ -58,6 +58,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return null
       }
 
+      // Ensure the user is active
+      if (!profile.is_active) {
+        console.warn("User account is deactivated")
+        return null
+      }
+
       return {
         id: profile.id,
         email: profile.email,

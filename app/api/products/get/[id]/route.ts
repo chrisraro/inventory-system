@@ -7,11 +7,8 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 // Create a Supabase client with service role for API routes
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> | { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    // Resolve params if it's a Promise
-    const resolvedParams = params instanceof Promise ? await params : params;
-    
     // Get the authorization header
     const authHeader = request.headers.get('authorization')
     if (!authHeader?.startsWith('Bearer ')) {
@@ -40,13 +37,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const isAdmin = profile?.role === 'admin'
 
-    // Get product from the simplified table
+    // Get the product from the simplified table
     let query = supabaseAdmin
       .from('products_simplified')
       .select('*')
-      .eq('id', resolvedParams.id)
+      .eq('id', params.id)
 
-    // For non-admin users, filter by their own products
+    // For non-admin users, ensure they can only access their own products
     if (!isAdmin) {
       query = query.eq('user_id', user.id)
     }
@@ -55,7 +52,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     if (error) {
       console.error('Database error:', error)
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+      if (error.code === 'PGRST116') {
+        return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+      }
+      return NextResponse.json({ error: 'Failed to fetch product' }, { status: 500 })
     }
 
     if (!product) {

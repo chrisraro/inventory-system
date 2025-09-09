@@ -16,18 +16,21 @@ A comprehensive inventory management system specifically designed for LPG (Lique
 - Role-based access control (Admin & Stock Manager)
 - Secure login with Supabase authentication
 - Session management with database-backed user profiles
+- Admin user management (assign roles, activate/deactivate users)
 
 ### 📦 Inventory Management
 - Add and delete LPG products
 - Support for various LPG container types (Cylinders, Tanks, Bottles, Canisters)
 - Real-time stock tracking with low stock alerts
 - Expiration date monitoring for safety compliance
+- QR-based cylinder tracking (1:1 mapping - one QR code per cylinder)
 
 ### 📊 Stock Movements
 - Record stock in/out operations
 - Inventory adjustments with audit trail
 - Movement history with user tracking
 - Reference number support for documentation
+- Status-based tracking (Available, Sold, Maintenance, Damaged, Missing)
 
 ### 📈 Reports & Analytics
 - Comprehensive inventory reports
@@ -62,11 +65,12 @@ This application requires a Supabase database setup:
 ### Required Environment Variables
 - **NEXT_PUBLIC_SUPABASE_URL**: Your Supabase project URL
 - **NEXT_PUBLIC_SUPABASE_ANON_KEY**: Your Supabase anonymous key
+- **SUPABASE_SERVICE_ROLE_KEY**: Your Supabase service role key (for server-side operations)
 
 ### Authentication
 Users must be created through Supabase Auth. The system supports:
-- **Admin Role**: Full system access including settings and user management
-- **Stockman Role**: Limited to inventory operations
+- **Admin Role**: Full system access including settings, user management, and viewing all data
+- **Stockman Role**: Limited to inventory operations and viewing only their own data
 
 ## Getting Started
 
@@ -86,19 +90,33 @@ Users must be created through Supabase Auth. The system supports:
    # Create .env.local file
    NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
    ```
 
-4. **Run the development server**
+4. **Database Setup**
+   ```bash
+   # Run the database setup scripts in order:
+   # 1. supabase_scripts/01_setup_simplified_system.sql
+   # 2. supabase_scripts/02_setup_authentication.sql
+   # 3. supabase_scripts/05_complete_rls_fix.sql (IMPORTANT: Run this to fix data visibility issues)
+   ```
+
+5. **Run the development server**
    ```bash
    npm run dev
    ```
 
-5. **Open your browser**
+6. **Open your browser**
    Navigate to `http://localhost:3000`
 
 ## Database Configuration
 
-Ensure your Supabase database is properly configured with the necessary tables and Row Level Security policies. The application requires tables for products_simplified, stock_movements_simplified, and settings.
+Ensure your Supabase database is properly configured with the necessary tables and Row Level Security policies. The application requires tables for products_simplified, stock_movements_simplified, and user_profiles.
+
+### Data Visibility Rules
+- **Admin users** can view all products and stock movements in the system
+- **Stockman users** can only view products and stock movements they created
+- All users can create, update, and delete their own records
 
 ## LPG Industry Features
 
@@ -133,6 +151,7 @@ petrogreen/
 │   ├── settings/          # System settings
 │   ├── stock-movements/   # Stock movement tracking
 │   ├── backup/            # Backup and restore
+│   ├── admin/users/       # User management (admin only)
 │   └── login/             # Authentication
 ├── components/            # Reusable UI components
 │   ├── auth/             # Authentication components
@@ -141,8 +160,23 @@ petrogreen/
 ├── contexts/             # React contexts
 ├── hooks/                # Custom React hooks
 ├── lib/                  # Utility functions
+├── supabase_scripts/     # Database setup scripts
 └── public/               # Static assets
 ```
+
+## Troubleshooting
+
+If you encounter data visibility issues where stockman users see the same data as admin users:
+
+1. Ensure you've run the [supabase_scripts/05_complete_rls_fix.sql](file:///C:/Users/User/OneDrive/Desktop/inventory-system/supabase_scripts/05_complete_rls_fix.sql) script
+2. Check that user profiles have the correct roles in the `user_profiles` table
+3. Clear browser cache and refresh the application
+4. Check the browser console for any JavaScript errors
+
+For user management issues:
+1. Ensure you're logged in as an admin user
+2. Navigate to Admin → User Management
+3. Check that the user management page loads correctly
 
 ## Contributing
 
@@ -167,6 +201,8 @@ For support and questions, please contact:
 - [x] QR-based cylinder tracking system
 - [x] Status-based inventory management
 - [x] Real-time stock movements
+- [x] Role-based access control with proper data isolation
+- [x] Admin user management functionality
 - [ ] Advanced analytics and forecasting
 - [ ] Multi-location support
 - [ ] Integration with accounting systems

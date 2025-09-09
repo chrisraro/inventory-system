@@ -110,7 +110,23 @@ export const getCurrentUserProfile = async () => {
 
 // Product functions
 export const getProducts = async () => {
-  const { data, error } = await supabase.from("products_simplified").select("*").order("created_at", { ascending: false })
+  // First get the current user's profile to check their role
+  const { data: userProfile, error: profileError } = await getCurrentUserProfile()
+  
+  if (profileError) {
+    console.error("Error fetching user profile:", profileError)
+    return { data: null, error: profileError }
+  }
+
+  let query = supabase.from("products_simplified").select("*").order("created_at", { ascending: false })
+  
+  // If user is not admin, filter by their own products only
+  const isAdmin = userProfile?.role === 'admin'
+  if (!isAdmin) {
+    query = query.eq("user_id", userProfile?.id)
+  }
+
+  const { data, error } = await query
   
   // Map database fields to UI expected fields for backward compatibility
   const mappedData = data?.map(product => ({
@@ -124,7 +140,23 @@ export const getProducts = async () => {
 }
 
 export const getProduct = async (id: string) => {
-  const { data, error } = await supabase.from("products_simplified").select("*").eq("id", id).single()
+  // First get the current user's profile to check their role
+  const { data: userProfile, error: profileError } = await getCurrentUserProfile()
+  
+  if (profileError) {
+    console.error("Error fetching user profile:", profileError)
+    return { data: null, error: profileError }
+  }
+
+  let query = supabase.from("products_simplified").select("*").eq("id", id)
+  
+  // If user is not admin, ensure they can only access their own products
+  const isAdmin = userProfile?.role === 'admin'
+  if (!isAdmin) {
+    query = query.eq("user_id", userProfile?.id)
+  }
+
+  const { data, error } = await query.single()
   
   // Map database fields to UI expected fields for backward compatibility
   const mappedData = data ? {
@@ -195,6 +227,14 @@ export const deleteProduct = async (id: string) => {
 
 // Stock movement functions
 export const getStockMovements = async (productId?: string) => {
+  // First get the current user's profile to check their role
+  const { data: userProfile, error: profileError } = await getCurrentUserProfile()
+  
+  if (profileError) {
+    console.error("Error fetching user profile:", profileError)
+    return { data: null, error: profileError }
+  }
+
   let query = supabase
     .from("stock_movements_simplified")
     .select(`
@@ -212,6 +252,12 @@ export const getStockMovements = async (productId?: string) => {
 
   if (productId) {
     query = query.eq("product_id", productId)
+  }
+
+  // If user is not admin, filter by their own movements only
+  const isAdmin = userProfile?.role === 'admin'
+  if (!isAdmin) {
+    query = query.eq("created_by", userProfile?.id)
   }
 
   const { data, error } = await query
@@ -305,7 +351,6 @@ export default {
   deleteProduct,
   getStockMovements,
   createStockMovement,
-  validateProduct,
   testConnection,
   getInventoryAnalytics,
 }
