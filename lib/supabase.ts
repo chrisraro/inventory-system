@@ -172,8 +172,8 @@ export const getProduct = async (id: string) => {
 export const createProduct = async (product: any) => {
   // For simplified system, we expect qr_code, weight_kg, unit_cost, supplier
   const productData = {
-    id: `LPG-${product.qr_code.toUpperCase().replace('LPG-', '')}`,
-    qr_code: product.qr_code.toUpperCase().replace('LPG-', ''),
+    id: product.qr_code.toUpperCase(),
+    qr_code: product.qr_code.toUpperCase(),
     weight_kg: parseFloat(product.weight_kg),
     unit_cost: parseFloat(product.unit_cost),
     supplier: product.supplier || null,

@@ -1,16 +1,18 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Camera, CameraOff, ArrowLeft, Plus, Package, AlertCircle } from "lucide-react"
-import { toast } from "sonner"
 import { useRouter } from "next/navigation"
-import DashboardLayout from "@/components/layout/dashboard-layout"
-import ProtectedRoute from "@/components/auth/protected-route"
-import jsQR from "jsqr"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
+import { Camera, CameraOff, ArrowLeft } from "lucide-react"
+import { toast } from "@/hooks/use-toast"
+import ProtectedRoute from "@/components/auth/protected-route"
+import DashboardLayout from "@/components/layout/dashboard-layout"
+import jsQR from "jsqr"
 
 export default function QRScannerPage() {
   const router = useRouter()
@@ -23,6 +25,7 @@ export default function QRScannerPage() {
     product?: any
     exists: boolean
   } | null>(null)
+  
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -31,8 +34,8 @@ export default function QRScannerPage() {
   const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: {
-          facingMode: { exact: "environment" }, // Force back camera
+        video: { 
+          facingMode: { exact: "environment" },
           width: { ideal: 1280 },
           height: { ideal: 720 }
         }
@@ -43,20 +46,18 @@ export default function QRScannerPage() {
         streamRef.current = stream
         setIsActive(true)
         
-        videoRef.current.play().catch(console.error)
-        
-        // Start QR scanning after a short delay
+        // Start scanning after a brief delay to allow camera to initialize
         setTimeout(() => {
           startQRScanning()
-        }, 1000)
+        }, 500)
       }
     } catch (error) {
       console.error("Camera error:", error)
-      // If exact back camera fails, try with preferred back camera
+      // Try with preferred back camera instead of exact
       try {
         const fallbackStream = await navigator.mediaDevices.getUserMedia({ 
-          video: {
-            facingMode: "environment", // Prefer back camera (not exact)
+          video: { 
+            facingMode: "environment",
             width: { ideal: 1280 },
             height: { ideal: 720 }
           }
@@ -67,15 +68,18 @@ export default function QRScannerPage() {
           streamRef.current = fallbackStream
           setIsActive(true)
           
-          videoRef.current.play().catch(console.error)
-          
+          // Start scanning after a brief delay to allow camera to initialize
           setTimeout(() => {
             startQRScanning()
-          }, 1000)
+          }, 500)
         }
       } catch (fallbackError) {
         console.error("Fallback camera error:", fallbackError)
-        toast.error("Unable to access back camera. Please check permissions.")
+        toast({
+          title: "Camera Error",
+          description: "Unable to access back camera. Please check permissions.",
+          variant: "destructive",
+        })
       }
     }
   }
@@ -132,9 +136,9 @@ export default function QRScannerPage() {
   const handleQRDetected = async (qrData: string) => {
     console.log("QR Code detected:", qrData)
     
-    // Clean the QR data and generate product ID
-    const cleanQRData = qrData.trim().toUpperCase().replace('LPG-', '')
-    const productId = `LPG-${cleanQRData}`
+    // No longer removing LPG- prefix
+    const cleanQRData = qrData.trim().toUpperCase()
+    const productId = cleanQRData
     
     // Stop scanning after detection
     if (scanIntervalRef.current) {
@@ -328,66 +332,49 @@ export default function QRScannerPage() {
                     <Badge variant="outline">{scanResult.productId}</Badge>
                   </div>
                 </div>
-
-                {scanResult.exists && scanResult.product ? (
-                  <div className="space-y-4">
-                    <div className="bg-white p-4 rounded-lg border">
-                      <h3 className="font-semibold text-lg text-green-900">{scanResult.product.name}</h3>
-                      <p className="text-gray-600">{scanResult.product.brand}</p>
-                      <p className="text-gray-600">{scanResult.product.weight_kg}kg {scanResult.product.unit_type}</p>
-                      <p className="text-gray-600">Stock: {scanResult.product.current_stock}</p>
-                    </div>
-                    <div className="flex space-x-2">
-                      <Button onClick={() => router.push('/stock-movements')} className="flex-1 bg-green-600 hover:bg-green-700">
-                        <Package className="h-4 w-4 mr-2" />
-                        Manage Status
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="bg-white p-4 rounded-lg border border-orange-200">
-                      <div className="flex items-center space-x-2">
-                        <AlertCircle className="h-5 w-5 text-orange-600" />
-                        <p className="text-orange-800 font-medium">This product is not in the database</p>
+                
+                {scanResult.product && (
+                  <>
+                    <Separator />
+                    <div className="space-y-2">
+                      <h3 className="font-medium">Product Details</h3>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <span className="text-gray-600">Weight:</span>
+                        <span>{scanResult.product.weight_kg}kg</span>
+                        
+                        <span className="text-gray-600">Status:</span>
+                        <span className="capitalize">{scanResult.product.status}</span>
+                        
+                        <span className="text-gray-600">Supplier:</span>
+                        <span>{scanResult.product.supplier || 'N/A'}</span>
                       </div>
-                      <p className="text-gray-600 mt-2">Would you like to add it as a new product?</p>
                     </div>
-                    <Button onClick={navigateToAddProduct} className="w-full bg-orange-600 hover:bg-orange-700">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add New Product
-                    </Button>
-                  </div>
+                  </>
                 )}
-
-                <Button onClick={resetScanner} variant="outline" className="w-full">
-                  Scan Another QR Code
-                </Button>
+                
+                <div className="flex space-x-2 pt-4">
+                  <Button variant="outline" onClick={resetScanner} className="flex-1">
+                    Scan Again
+                  </Button>
+                  <Button onClick={navigateToAddProduct} className="flex-1">
+                    Add Product
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Demo Codes */}
+          {/* Instructions */}
           <Card>
             <CardHeader>
-              <CardTitle>Demo QR Codes</CardTitle>
+              <CardTitle>Instructions</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 gap-2">
-                {["LPG-PET-11KG-001", "LPG-SHE-22KG-002", "LPG-SOL-27KG-003", "LPG-TOT-50KG-004"].map((code) => (
-                  <Button
-                    key={code}
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setManualInput(code)
-                      toast.success(`Selected: ${code}`)
-                    }}
-                    className="text-xs"
-                  >
-                    {code}
-                  </Button>
-                ))}
+              <div className="space-y-2 text-sm text-gray-600">
+                <p>• Point your camera at a QR code to scan it automatically</p>
+                <p>• Ensure good lighting and hold the device steady</p>
+                <p>• Use manual entry if scanning doesn't work</p>
+                <p>• Each QR code represents a unique cylinder in your inventory</p>
               </div>
             </CardContent>
           </Card>

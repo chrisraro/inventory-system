@@ -16,14 +16,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Generate the LPG product ID
-    const productId = `LPG-${qrCode.toUpperCase().replace('LPG-', '')}`
+    // Use the QR code directly (no LPG- prefix removal)
+    const productId = qrCode.toUpperCase()
 
-    // Check if product exists with this QR code or product ID
+    // Check if product exists with this QR code
     const { data: product, error } = await supabase
       .from('products_simplified')
       .select('*')
-      .or(`qr_code.eq.${qrCode},id.eq.${productId}`)
+      .eq('qr_code', productId)
       .eq('user_id', user.id)
       .single()
 

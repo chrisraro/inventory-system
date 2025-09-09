@@ -44,6 +44,7 @@ export default function AddItemPage() {
   useEffect(() => {
     const qrParam = searchParams.get('qr')
     if (qrParam) {
+      // Remove LPG- prefix if present
       const cleanQR = qrParam.trim().toUpperCase().replace('LPG-', '')
       setQrCodeFromUrl(cleanQR)
       setManualQrInput(cleanQR)
@@ -160,8 +161,8 @@ export default function AddItemPage() {
   const handleQRDetected = (qrData: string) => {
     console.log("QR Code detected:", qrData)
     
-    // Clean the QR data
-    const cleanQRData = qrData.trim().toUpperCase().replace('LPG-', '')
+    // Clean the QR data (no longer removing LPG- prefix)
+    const cleanQRData = qrData.trim().toUpperCase()
     
     // Stop scanning after detection
     if (scanIntervalRef.current) {
@@ -185,7 +186,8 @@ export default function AddItemPage() {
   const handleManualQRSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (manualQrInput.trim()) {
-      const cleanQR = manualQrInput.trim().toUpperCase().replace('LPG-', '')
+      // No longer removing LPG- prefix
+      const cleanQR = manualQrInput.trim().toUpperCase()
       setQrCodeFromUrl(cleanQR)
     }
   }
@@ -265,7 +267,7 @@ export default function AddItemPage() {
 
       toast({
         title: "Success",
-        description: `${formData.weight_kg}kg LPG Cylinder added successfully (ID: LPG-${qrCodeFromUrl})`,
+        description: `${formData.weight_kg}kg Cylinder added successfully (ID: ${qrCodeFromUrl})`,
       })
 
       // Reset form and navigate
@@ -301,12 +303,12 @@ export default function AddItemPage() {
             </Button>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
-                {qrCodeFromUrl ? "Add Scanned Product" : "Add LPG Cylinder"}
+                {qrCodeFromUrl ? "Add Scanned Product" : "Add Cylinder"}
               </h1>
               <p className="text-gray-600">
                 {qrCodeFromUrl 
                   ? `Create product from QR code: ${qrCodeFromUrl}` 
-                  : "Add a new LPG cylinder to your inventory"
+                  : "Add a new cylinder to your inventory"
                 }
               </p>
             </div>
@@ -411,7 +413,7 @@ export default function AddItemPage() {
                           <strong>QR Code:</strong> {qrCodeFromUrl}
                         </p>
                         <p className="text-sm text-green-800">
-                          <strong>Product ID:</strong> LPG-{qrCodeFromUrl.toUpperCase().replace('LPG-', '')}
+                          <strong>Product ID:</strong> {qrCodeFromUrl}
                         </p>
                       </div>
                       <Button 

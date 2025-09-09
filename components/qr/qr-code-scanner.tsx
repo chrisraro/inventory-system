@@ -29,8 +29,8 @@ export function QRCodeScanner({ onScan, onClose }: QRCodeScannerProps) {
   const streamRef = useRef<MediaStream | null>(null)
   const animationFrameRef = useRef<number | null>(null)
 
-  // Demo QR codes for testing
-  const demoQRCodes = ["LPG-PET-11KG-001", "LPG-SHE-22KG-002", "LPG-SOL-27KG-003", "LPG-TOT-50KG-004"]
+  // Demo QR codes for testing (without LPG- prefix)
+  const demoQRCodes = ["PET-11KG-001", "SHE-22KG-002", "SOL-27KG-003", "TOT-50KG-004"]
 
   const startScanning = async () => {
     try {
@@ -136,22 +136,18 @@ export function QRCodeScanner({ onScan, onClose }: QRCodeScannerProps) {
 
     setLastScanned(qrData)
 
-    // Parse QR data
-    const parsed = parseQRData(qrData)
-    if (!parsed) {
-      toast.error("Invalid QR code format")
-      return
-    }
+    // No longer removing LPG- prefix
+    const cleanQRData = qrData.trim().toUpperCase()
 
     // Get product data
-    const { data: product, error } = await getProductByQRData(qrData)
+    const { data: product, error } = await getProductByQRData(cleanQRData)
 
     if (error) {
       toast.error("Product not found for this QR code")
-      onScan(qrData)
+      onScan(cleanQRData)
     } else {
       toast.success(`Product found: ${product?.name}`)
-      onScan(qrData, product)
+      onScan(cleanQRData, product)
     }
   }
 
@@ -159,6 +155,7 @@ export function QRCodeScanner({ onScan, onClose }: QRCodeScannerProps) {
     e.preventDefault()
     if (!manualInput.trim()) return
 
+    // No longer removing LPG- prefix
     await handleQRDetected(manualInput.trim())
     setManualInput("")
   }

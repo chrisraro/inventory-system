@@ -30,15 +30,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields: qr_code, weight_kg, unit_cost' }, { status: 400 })
     }
 
-    // Generate product ID from QR code
-    const cleanQRCode = productData.qr_code.toUpperCase().replace('LPG-', '')
-    const productId = `LPG-${cleanQRCode}`
+    // Use the QR code directly as the product ID (no LPG- prefix)
+    const productId = productData.qr_code.toUpperCase()
 
     // Check if product with this QR code already exists
     const { data: existingProduct } = await supabaseAdmin
       .from('products_simplified')
       .select('id')
-      .or(`qr_code.eq.${cleanQRCode},id.eq.${productId}`)
+      .eq('qr_code', productId)
       .eq('user_id', user.id)
       .maybeSingle()
 
@@ -49,7 +48,7 @@ export async function POST(request: NextRequest) {
     // Create simplified product data
     const simplifiedProduct = {
       id: productId,
-      qr_code: cleanQRCode,
+      qr_code: productId,
       weight_kg: parseFloat(productData.weight_kg),
       unit_cost: parseFloat(productData.unit_cost),
       supplier: productData.supplier || null,
