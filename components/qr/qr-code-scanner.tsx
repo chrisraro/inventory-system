@@ -125,6 +125,7 @@ export function QRCodeScanner({ onScan, onClose }: QRCodeScannerProps) {
         }
       }
 
+      // Use requestAnimationFrame for better performance instead of setInterval
       animationFrameRef.current = requestAnimationFrame(scanFrame)
     }
 

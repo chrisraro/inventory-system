@@ -66,17 +66,6 @@ else
   exit 1
 fi
 
-# Run tests
-echo "🧪 Running tests..."
-pnpm run test
-
-if [ $? -eq 0 ]; then
-  echo "✅ All tests passed"
-else
-  echo "❌ Some tests failed. Please check the error messages above."
-  exit 1
-fi
-
 # Check TypeScript
 echo "🔍 Checking TypeScript..."
 pnpm run tsc --noEmit
@@ -108,6 +97,6 @@ echo "Next steps:"
 echo "1. Update .env.local with your Supabase credentials"
 echo "2. Deploy using your preferred platform (Vercel, Netlify, etc.)"
 echo "3. Set up your Supabase database with the schema in scripts/create-complete-database-schema.sql"
-echo "4. Run the health check endpoint at /api/health to verify deployment"
+echo "4. Verify the application is working correctly"
 echo ""
 echo "For more information, check the documentation in documentations.md"

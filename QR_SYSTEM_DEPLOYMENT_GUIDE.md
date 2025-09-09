@@ -29,10 +29,10 @@ The build was failing with module resolution errors for `@supabase/auth-helpers-
    - Mobile back camera support
    - Real-time QR detection with jsQR
    - Database integration for product checking
-   - Auto-redirect to add-product page
+   - Embedded scanner in product and stock movement pages
 
 2. **New Product Creation Flow**
-   - QR codes become product primary keys (LPG-prefix)
+   - QR codes become product primary keys
    - API endpoint: `/api/products/create`
    - Handles both QR-scanned and manual products
    - Automatic duplicate checking
@@ -41,9 +41,10 @@ The build was failing with module resolution errors for `@supabase/auth-helpers-
    - API endpoint: `/api/stock-movements`
    - Works with QR-based product IDs
    - Automatic stock level updates via database triggers
+   - Embedded QR scanner for direct product identification
 
 4. **Navigation & UI**
-   - Removed QR generation features
+   - Removed separate QR scanner page
    - Streamlined scanner-focused workflow
    - Updated dashboard navigation
 
@@ -61,10 +62,10 @@ This creates:
 - Helper functions for QR code processing
 
 #### 2. Test the Complete Flow
-1. Navigate to `/qr-scanner`
-2. Scan a QR code (or use manual input)
-3. For new QR codes: Click "Add Product" 
-4. Create product with auto-generated LPG-prefix ID
+1. Navigate to `/add-item` or `/stock-movements`
+2. Use the embedded QR scanner to scan a QR code (or use manual input)
+3. For new QR codes: Add product information
+4. Create product with QR code as primary key
 5. Test stock movements with the new product
 
 #### 3. Optional: Data Migration
@@ -75,8 +76,8 @@ If you have existing products, you may want to migrate them to the new QR-based 
 ### New Database Schema
 ```sql
 CREATE TABLE products_new (
-  id TEXT PRIMARY KEY,           -- LPG-05285AWI1ES04
-  qr_code TEXT UNIQUE NOT NULL,  -- 05285AWI1ES04
+  id TEXT PRIMARY KEY,           -- QR code as ID
+  qr_code TEXT UNIQUE NOT NULL,  -- Same as ID
   name TEXT NOT NULL,
   brand TEXT NOT NULL,
   weight_kg DECIMAL(10,2),
@@ -86,7 +87,7 @@ CREATE TABLE products_new (
 ```
 
 ### API Endpoints
-- `GET /api/products/check-qr?qr=05285AWI1ES04` - Check if QR exists
+- `GET /api/products/check-qr?qr=QR001` - Check if QR exists
 - `POST /api/products/create` - Create QR-based product
 - `GET /api/products/list` - Get products from QR table
 - `GET/POST /api/stock-movements` - Manage stock with QR products

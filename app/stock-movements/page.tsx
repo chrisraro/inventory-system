@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { 
   Package, QrCode, Scan, ShoppingCart, Wrench, 
-  AlertTriangle, Eye, Plus 
+  AlertTriangle, Eye, Plus, Camera, CameraOff 
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/auth-context"
@@ -20,6 +20,7 @@ import ProtectedRoute from "@/components/auth/protected-route"
 import DashboardLayout from "@/components/layout/dashboard-layout"
 import { useRouter } from "next/navigation"
 import { authenticatedGet, authenticatedPost } from "@/lib/api-client"
+import jsQR from "jsqr"
 
 interface Product {
   id: string
@@ -70,6 +71,15 @@ export default function StockMovementsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showMovementForm, setShowMovementForm] = useState(false)
   const [scannedProduct, setScannedProduct] = useState<Product | null>(null)
+  const [showScanner, setShowScanner] = useState(false)
+  const [isScanning, setIsScanning] = useState(false)
+  const [cameraActive, setCameraActive] = useState(false)
+  const [manualQrInput, setManualQrInput] = useState("")
+
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const scanIntervalRef = useRef<number | null>(null)
 
   const [formData, setFormData] = useState({
     product_id: "",
@@ -88,6 +98,12 @@ export default function StockMovementsPage() {
   useEffect(() => {
     fetchMovements()
   }, [filters])
+
+  useEffect(() => {
+    return () => {
+      stopCamera()
+    }
+  }, [])
 
   const fetchMovements = async () => {
     try {
@@ -128,8 +144,188 @@ export default function StockMovementsPage() {
     }
   }
 
-  const handleQRScanRedirect = () => {
-    router.push('/qr-scanner')
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: {
+          facingMode: { exact: "environment" }, // Force back camera
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      })
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        streamRef.current = stream
+        setCameraActive(true)
+        
+        // Play video and start scanning
+        await videoRef.current.play()
+        startQRScanning()
+      }
+    } catch (error) {
+      console.error("Camera error:", error)
+      // If exact back camera fails, try with preferred back camera
+      try {
+        const fallbackStream = await navigator.mediaDevices.getUserMedia({ 
+          video: {
+            facingMode: "environment", // Prefer back camera (not exact)
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
+        })
+        
+        if (videoRef.current) {
+          videoRef.current.srcObject = fallbackStream
+          streamRef.current = fallbackStream
+          setCameraActive(true)
+          
+          // Play video and start scanning
+          await videoRef.current.play()
+          startQRScanning()
+        }
+      } catch (fallbackError) {
+        console.error("Fallback camera error:", fallbackError)
+        toast({
+          title: "Camera Error",
+          description: "Unable to access back camera. Please check permissions.",
+          variant: "destructive",
+        })
+      }
+    }
+  }
+
+  const stopCamera = () => {
+    if (scanIntervalRef.current) {
+      clearInterval(scanIntervalRef.current)
+      scanIntervalRef.current = null
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop())
+      streamRef.current = null
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null
+    }
+    setCameraActive(false)
+    setIsScanning(false)
+  }
+
+  const startQRScanning = () => {
+    if (!videoRef.current || !canvasRef.current) return
+    
+    setIsScanning(true)
+    
+    scanIntervalRef.current = window.setInterval(() => {
+      scanForQR()
+    }, 300) // Check for QR codes every 300ms (increased from 500ms for better responsiveness)
+  }
+
+  const scanForQR = () => {
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    
+    if (!video || !canvas || video.readyState !== video.HAVE_ENOUGH_DATA) {
+      return
+    }
+    
+    const context = canvas.getContext('2d')
+    if (!context) return
+    
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    context.drawImage(video, 0, 0)
+    
+    const imageData = context.getImageData(0, 0, canvas.width, canvas.height)
+    const qrCode = jsQR(imageData.data, imageData.width, imageData.height)
+    
+    if (qrCode) {
+      handleQRDetected(qrCode.data)
+    }
+  }
+
+  const handleQRDetected = async (qrData: string) => {
+    console.log("QR Code detected:", qrData)
+    
+    // Clean the QR data (no longer removing LPG- prefix)
+    const cleanQRData = qrData.trim().toUpperCase()
+    
+    // Stop scanning after detection
+    if (scanIntervalRef.current) {
+      clearInterval(scanIntervalRef.current)
+      scanIntervalRef.current = null
+      setIsScanning(false)
+    }
+    
+    // Set the QR code
+    setShowScanner(false)
+    stopCamera()
+    
+    // Check if product exists
+    try {
+      const response = await fetch(`/api/products/check-qr?qr=${encodeURIComponent(cleanQRData)}`)
+      const data = await response.json()
+      
+      if (data.exists && data.product) {
+        setScannedProduct(data.product)
+        setFormData(prev => ({ ...prev, product_id: data.product.id }))
+        setShowMovementForm(true)
+        toast({
+          title: "Product Found",
+          description: `Successfully scanned: ${cleanQRData}`,
+        })
+      } else {
+        toast({
+          title: "Product Not Found",
+          description: "This QR code is not registered in the system",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Error checking product:", error)
+      toast({
+        title: "Error",
+        description: "Failed to check product in database",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleManualQRSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (manualQrInput.trim()) {
+      // No longer removing LPG- prefix
+      const cleanQR = manualQrInput.trim().toUpperCase()
+      
+      // Check if product exists
+      try {
+        const response = await fetch(`/api/products/check-qr?qr=${encodeURIComponent(cleanQR)}`)
+        const data = await response.json()
+        
+        if (data.exists && data.product) {
+          setScannedProduct(data.product)
+          setFormData(prev => ({ ...prev, product_id: data.product.id }))
+          setShowMovementForm(true)
+          toast({
+            title: "Product Found",
+            description: `Successfully found: ${cleanQR}`,
+          })
+        } else {
+          toast({
+            title: "Product Not Found",
+            description: "This QR code is not registered in the system",
+            variant: "destructive",
+          })
+        }
+      } catch (error) {
+        console.error("Error checking product:", error)
+        toast({
+          title: "Error",
+          description: "Failed to check product in database",
+          variant: "destructive",
+        })
+      }
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -219,9 +415,9 @@ export default function StockMovementsPage() {
               <p className="text-gray-600">Track individual cylinder status and movements</p>
             </div>
             <div className="flex gap-2">
-              <Button onClick={handleQRScanRedirect}>
+              <Button onClick={() => setShowScanner(!showScanner)} variant={showScanner ? "secondary" : "default"}>
                 <Scan className="h-4 w-4 mr-2" />
-                Scan QR Code
+                {showScanner ? "Close Scanner" : "Scan QR Code"}
               </Button>
               <Button variant="outline" onClick={() => setShowMovementForm(true)}>
                 <Plus className="h-4 w-4 mr-2" />
@@ -229,6 +425,88 @@ export default function StockMovementsPage() {
               </Button>
             </div>
           </div>
+
+          {/* QR Scanner */}
+          {showScanner && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Scan className="h-5 w-5" />
+                  <span>QR Code Scanner</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {/* Camera View */}
+                  <div className="relative bg-black rounded-lg overflow-hidden aspect-video">
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="w-full h-full object-cover"
+                    />
+                    
+                    {/* Hidden canvas for QR detection */}
+                    <canvas ref={canvasRef} style={{ display: 'none' }} />
+                    
+                    {/* Scanning overlay */}
+                    {cameraActive && isScanning && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-64 h-64 border-2 border-green-400 rounded-lg relative">
+                          <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-green-400 rounded-tl-lg"></div>
+                          <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-green-400 rounded-tr-lg"></div>
+                          <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-green-400 rounded-bl-lg"></div>
+                          <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-green-400 rounded-br-lg"></div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {!cameraActive && (
+                      <div className="absolute inset-0 flex items-center justify-center text-white">
+                        <div className="text-center">
+                          <Camera className="h-16 w-16 mx-auto mb-4" />
+                          <p>Camera not active</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Camera Controls */}
+                  <div className="flex justify-center space-x-2">
+                    {!cameraActive ? (
+                      <Button onClick={startCamera} className="w-full">
+                        <Camera className="h-4 w-4 mr-2" />
+                        Start Camera
+                      </Button>
+                    ) : (
+                      <Button onClick={stopCamera} variant="outline" className="w-full">
+                        <CameraOff className="h-4 w-4 mr-2" />
+                        Stop Camera
+                      </Button>
+                    )}
+                  </div>
+                  
+                  {/* Manual Input */}
+                  <div className="space-y-2">
+                    <Label htmlFor="manual-qr">Or enter QR code manually:</Label>
+                    <form onSubmit={handleManualQRSubmit} className="flex space-x-2">
+                      <Input
+                        id="manual-qr"
+                        value={manualQrInput}
+                        onChange={(e) => setManualQrInput(e.target.value)}
+                        placeholder="Enter QR code data"
+                        className="flex-1"
+                      />
+                      <Button type="submit" disabled={!manualQrInput.trim()}>
+                        Submit
+                      </Button>
+                    </form>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -315,7 +593,7 @@ export default function StockMovementsPage() {
                   <Package className="h-12 w-12 mx-auto text-gray-400 mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No movements found</h3>
                   <p className="text-gray-600 mb-4">Start by scanning QR codes to track cylinder movements</p>
-                  <Button onClick={handleQRScanRedirect}>
+                  <Button onClick={() => setShowScanner(true)}>
                     <Scan className="h-4 w-4 mr-2" />
                     Scan First QR Code
                   </Button>
@@ -380,12 +658,18 @@ export default function StockMovementsPage() {
                 <Input
                   value={formData.product_id}
                   onChange={(e) => setFormData(prev => ({ ...prev, product_id: e.target.value }))}
-                  placeholder="LPG-05285AWI1ES04"
+                  placeholder="Enter product ID"
                   required
+                  readOnly={!!scannedProduct}
                 />
-                <p className="text-sm text-gray-500 mt-1">
-                  Scan QR code or enter product ID manually
-                </p>
+                {scannedProduct && (
+                  <div className="mt-2 p-2 bg-green-50 rounded text-sm">
+                    <p className="font-medium">Scanned Product:</p>
+                    <p>ID: {scannedProduct.id}</p>
+                    <p>Weight: {scannedProduct.weight_kg}kg</p>
+                    <p>Status: {scannedProduct.status}</p>
+                  </div>
+                )}
               </div>
               
               <div>
@@ -458,7 +742,10 @@ export default function StockMovementsPage() {
                 <Button 
                   type="button" 
                   variant="outline" 
-                  onClick={() => setShowMovementForm(false)}
+                  onClick={() => {
+                    setShowMovementForm(false)
+                    setScannedProduct(null)
+                  }}
                   className="flex-1"
                 >
                   Cancel

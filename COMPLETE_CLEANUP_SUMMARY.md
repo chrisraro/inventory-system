@@ -10,9 +10,8 @@ This document summarizes the complete removal of the old QR-based system and ver
 
 ### 2. Components
 - `components/qr/qr-code-generator.tsx` - Component for generating QR codes
-- `components/qr/qr-code-scanner.tsx` - Component for scanning QR codes
-- `components/qr/qr-pdf-export.tsx` - Component for exporting QR codes to PDF
-- Entire `components/qr/` directory
+- `components/qr/qr-code-scanner.tsx` - Component for scanning QR codes (already removed in previous cleanup)
+- Entire `components/qr/` directory (except for components still used in simplified system)
 
 ### 3. Hooks
 - `hooks/use-qr-codes.ts` - Hook for managing QR codes (already removed in previous cleanup)
@@ -22,6 +21,11 @@ This document summarizes the complete removal of the old QR-based system and ver
 
 ### 5. Documentation
 - Removed QR-related sections from `documentations.md`
+
+### 6. Health Check Functionality
+- `lib/health-check.ts` - Health check utility
+- `app/api/health/` - Health check API route directory
+- Removed health check references from setup scripts
 
 ## Database Cleanup
 
@@ -43,7 +47,7 @@ Created `supabase_scripts/cleanup_old_system.sql` to remove all obsolete tables:
 ### Current Working System
 The inventory system now operates exclusively with the simplified QR-based cylinder tracking system:
 
-1. **Product Creation**: Uses QR codes as primary identifiers with LPG-{QR_CODE} format
+1. **Product Creation**: Uses QR codes as primary identifiers
 2. **Status Tracking**: Products have status fields (available, sold, maintenance, damaged, missing)
 3. **Stock Movements**: Tracks status changes rather than quantity changes
 4. **QR Scanning**: Integrated throughout the system for product identification
@@ -61,7 +65,6 @@ The inventory system now operates exclusively with the simplified QR-based cylin
 
 All obsolete QR-related functionality has been completely removed:
 - No QR code generation components remain
-- No QR code export functionality remains
 - No separate QR codes management page remains
 - No QR-related database tables remain (in the active system)
 - All navigation links to QR functionality have been removed

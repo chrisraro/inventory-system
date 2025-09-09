@@ -43,9 +43,11 @@ This document summarizes the systematic cleanup of the inventory system based on
 ## 4. QR-Based System Implementation
 
 ### Changes Made:
-- Enhanced QR scanner with mobile back camera support in [app/qr-scanner/page.tsx](file:///c:/Users/User/OneDrive/Desktop/inventory-system/app/qr-scanner/page.tsx)
+- Enhanced QR scanner with mobile back camera support and embedded it in product and stock movement pages
 - Created new product creation flow based on QR codes as primary keys in [app/add-item/page.tsx](file:///c:/Users/User/OneDrive/Desktop/inventory-system/app/add-item/page.tsx)
 - Updated stock movements to work with QR-based product IDs in [app/stock-movements/page.tsx](file:///c:/Users/User/OneDrive/Desktop/inventory-system/app/stock-movements/page.tsx)
+- Removed separate QR scanner page and embedded scanner directly in relevant pages
+- Removed obsolete QR codes management page and related components
 - Streamlined the user interface to focus on QR scanning workflow
 
 ### Verification:
@@ -54,20 +56,39 @@ This document summarizes the systematic cleanup of the inventory system based on
 - Stock movements are properly tracked with QR-based product IDs
 - Status-based tracking system is fully implemented
 
-## 5. Codebase Organization
+## 5. Health Check Functionality Removal
+
+### Changes Made:
+- Removed `lib/health-check.ts` - Health check utility file
+- Removed `app/api/health/` - Empty health check API route directory
+- Updated setup scripts to remove references to health check endpoint
+- Removed test execution from setup scripts (no test files exist in the project)
+
+### Verification:
+- No health check functionality remains in the codebase
+- Setup scripts no longer reference health check endpoints
+- No broken references to health check functionality
+
+## 6. Codebase Organization
 
 ### Files Removed:
 - [hooks/use-qr-codes.ts](file:///c:/Users/User/OneDrive/Desktop/inventory-system/hooks/use-qr-codes.ts) - Obsolete hook for old QR system
+- [app/qr-scanner/page.tsx](file:///c:/Users/User/OneDrive/Desktop/inventory-system/app/qr-scanner/page.tsx) - Separate QR scanner page (embedded scanner in relevant pages instead)
+- [app/qr-codes/page.tsx](file:///c:/Users/User/OneDrive/Desktop/inventory-system/app/qr-codes/page.tsx) - QR codes management page (obsolete in simplified system)
+- [app/qr-codes/loading.tsx](file:///c:/Users/User/OneDrive/Desktop/inventory-system/app/qr-codes/loading.tsx) - Loading component for QR codes page
+- [components/qr/qr-code-generator.tsx](file:///c:/Users/User/OneDrive/Desktop/inventory-system/components/qr/qr-code-generator.tsx) - Obsolete QR code generator component
 - [DATABASE_MIGRATION_REQUIRED.md](file:///c:/Users/User/OneDrive/Desktop/inventory-system/DATABASE_MIGRATION_REQUIRED.md) - Obsolete documentation
-- [QR_SYSTEM_DEPLOYMENT_GUIDE.md](file:///c:/Users/User/OneDrive/Desktop/inventory-system/QR_SYSTEM_DEPLOYMENT_GUIDE.md) - Obsolete documentation
-- [RECOVERY_AND_MIGRATION_GUIDE.md](file:///c:/Users/User/OneDrive/Desktop/inventory-system/RECOVERY_AND_MIGRATION_GUIDE.md) - Obsolete documentation
 - [supabase_scripts/05_cleanup_obsolete_tables.sql](file:///c:/Users/User/OneDrive/Desktop/inventory-system/supabase_scripts/05_cleanup_obsolete_tables.sql) - Obsolete SQL script
 - Several obsolete SQL scripts in the [scripts/](file:///c:/Users/User/OneDrive/Desktop/inventory-system/scripts) directory
+- `lib/health-check.ts` - Health check utility
+- `app/api/health/` - Health check API route directory
 
 ### Files Updated:
 - [app/backup/page.tsx](file:///c:/Users/User/OneDrive/Desktop/inventory-system/app/backup/page.tsx) - Removed QR code references
 - [lib/supabase.ts](file:///c:/Users/User/OneDrive/Desktop/inventory-system/lib/supabase.ts) - Removed obsolete QR functions
 - [README.md](file:///c:/Users/User/OneDrive/Desktop/inventory-system/README.md) - Updated to reflect current system
+- [app/qr-codes/page.tsx](file:///c:/Users/User/OneDrive/Desktop/inventory-system/app/qr-codes/page.tsx) - Updated navigation to remove QR scanner redirect
+- `setup.bat` and `setup.sh` - Removed health check and test references
 
 ### Verification:
 - All obsolete files have been removed
@@ -84,3 +105,4 @@ The inventory system has been successfully cleaned up and is now fully aligned w
 - Proper authentication and authorization
 - Clean codebase organization
 - No build errors or obsolete references
+- No health check functionality that would interfere with Vercel deployment

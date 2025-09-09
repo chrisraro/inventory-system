@@ -132,7 +132,7 @@ export default function AddItemPage() {
     
     scanIntervalRef.current = window.setInterval(() => {
       scanForQR()
-    }, 500) // Check for QR codes every 500ms
+    }, 300) // Check for QR codes every 300ms (increased from 500ms for better responsiveness)
   }
 
   const scanForQR = () => {
