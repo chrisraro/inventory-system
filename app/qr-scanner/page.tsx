@@ -204,7 +204,7 @@ export default function QRScannerPage() {
         <div className="max-w-2xl mx-auto space-y-6">
           {/* Header */}
           <div className="flex items-center space-x-4">
-            <Button variant="ghost" onClick={() => router.push("/qr-codes")}>
+            <Button variant="ghost" onClick={() => router.push("/")}>
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back
             </Button>

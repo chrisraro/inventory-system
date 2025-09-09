@@ -20,15 +20,10 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 
 ## Database Schema (Supabase)
 See `Corrected Supabase schema script` provided in chat. Key entities:
-- `products`: LPG items; stock tracked via `quantity`. View `products_with_stock` exposes `current_stock` for compatibility.
-- `suppliers`: source info.
-- `stock_movements`: records stock changes; trigger applies to `products.quantity`.
-- `inventory_logs`: detailed logs for audits.
-- `qr_codes`: per-product QR data.
-
-### Stock Update Flow
-- Insert into `stock_movements` with `movement_type` in `['incoming','outgoing','expired','damaged','adjustment']`.
-- DB trigger `apply_stock_movement` adjusts `products.quantity` accordingly.
+- `products_simplified`: LPG items with QR code tracking and status
+- `stock_movements_simplified`: records status changes
+- `user_profiles`: user information and roles
+- `suppliers`: source info
 
 ## Coding Standards
 - Follow Clean Code: descriptive names, early returns, minimal nesting.
@@ -46,10 +41,6 @@ See `Corrected Supabase schema script` provided in chat. Key entities:
 ## Data Access
 - Use `lib/supabase.ts` for client and helper functions.
 - Prefer server-side where possible; client-side used here for simplicity.
-
-## QR Codes
-- Table: `qr_codes(qr_data unique)`
-- Use helpers: `getQRCodes`, `generateQRCode`, `createQRCode`, `deleteQRCode`, `getProductByQRData`.
 
 ## Testing & Linting
 - Type-check: `pnpm tsc --noEmit`
