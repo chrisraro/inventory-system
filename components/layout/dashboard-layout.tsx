@@ -15,7 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Menu, Home, Plus, BarChart3, Settings, LogOut, Fuel, TrendingUp, Archive } from "lucide-react"
+import { Menu, Home, Plus, BarChart3, Settings, LogOut, Fuel, TrendingUp, Archive, Users } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
 import { cn } from "@/lib/utils"
 
@@ -32,6 +32,10 @@ const navigation = [
   { name: "Settings", href: "/settings", icon: Settings, permission: "manage_settings" },
 ]
 
+const adminNavigation = [
+  { name: "User Management", href: "/admin/users", icon: Users, permission: "manage_users" },
+]
+
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const pathname = usePathname()
@@ -44,6 +48,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }
 
   const filteredNavigation = navigation.filter((item) => hasPermission(item.permission))
+  
+  // Add admin navigation items for admin users
+  const allNavigation = [...filteredNavigation]
+  if (user?.role === 'admin') {
+    const filteredAdminNavigation = adminNavigation.filter((item) => hasPermission(item.permission))
+    allNavigation.push(...filteredAdminNavigation)
+  }
 
   const Sidebar = ({ mobile = false }: { mobile?: boolean }) => (
     <div className={cn("flex h-full flex-col", mobile ? "w-full" : "w-64")}>
@@ -59,7 +70,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
       </div>
       <nav className="flex-1 space-y-1 px-4 py-4">
-        {filteredNavigation.map((item) => {
+        {allNavigation.map((item) => {
           const isActive = pathname === item.href
           return (
             <Link

@@ -101,12 +101,20 @@ Users must be created through Supabase Auth. The system supports:
    # 3. supabase_scripts/05_complete_rls_fix.sql (IMPORTANT: Run this to fix data visibility issues)
    ```
 
-5. **Run the development server**
+5. **Create Admin User**
+   ```bash
+   # To set up an admin user, run:
+   # supabase_scripts/06_set_admin_user.sql (if user already exists)
+   # or
+   # supabase_scripts/07_create_admin_user.sql (to prepare user profile)
+   ```
+
+6. **Run the development server**
    ```bash
    npm run dev
    ```
 
-6. **Open your browser**
+7. **Open your browser**
    Navigate to `http://localhost:3000`
 
 ## Database Configuration
@@ -118,51 +126,25 @@ Ensure your Supabase database is properly configured with the necessary tables a
 - **Stockman users** can only view products and stock movements they created
 - All users can create, update, and delete their own records
 
-## LPG Industry Features
+### User Management
+- **Admin users** have access to User Management in the navigation sidebar
+- They can view all users, change roles, and activate/deactivate accounts
+- **Stockman users** do not have access to User Management
 
-### Product Types
-- 11kg, 22kg, 50kg LPG Cylinders (Residential, Small Business, Industrial)
-- Individual cylinder tracking with QR codes
-- Status-based inventory management (Available, Sold, Maintenance, Damaged, Missing)
+## Setting Up Admin Users
 
-### Suppliers
-- Shell Gas
-- BP Gas
-- Total Gas
-- Calor Gas
-- Petron Gasul
-- Solane
-- Liquigaz
-- Custom suppliers
+To set up an admin user:
 
-### Safety Compliance
-- Expiration date tracking
-- Safety inspection reminders
-- Regulatory compliance monitoring
-- Hazardous material handling protocols
+1. First, create the user account through the Supabase Dashboard:
+   - Go to Authentication → Users
+   - Click "Add user"
+   - Enter email: admin@petrogreen.com
+   - Set a secure password
+   - Click "Add user"
 
-## Project Structure
-
-```
-petrogreen/
-├── app/                    # Next.js app directory
-│   ├── add-item/          # Add product page
-│   ├── reports/           # Reports and analytics
-│   ├── settings/          # System settings
-│   ├── stock-movements/   # Stock movement tracking
-│   ├── backup/            # Backup and restore
-│   ├── admin/users/       # User management (admin only)
-│   └── login/             # Authentication
-├── components/            # Reusable UI components
-│   ├── auth/             # Authentication components
-│   ├── layout/           # Layout components
-│   └── ui/               # shadcn/ui components
-├── contexts/             # React contexts
-├── hooks/                # Custom React hooks
-├── lib/                  # Utility functions
-├── supabase_scripts/     # Database setup scripts
-└── public/               # Static assets
-```
+2. Then, run the appropriate SQL script:
+   - If the user already exists in auth.users: [supabase_scripts/06_set_admin_user.sql](file:///C:/Users/User/OneDrive/Desktop/inventory-system/supabase_scripts/06_set_admin_user.sql)
+   - If you need to prepare a user profile: [supabase_scripts/07_create_admin_user.sql](file:///C:/Users/User/OneDrive/Desktop/inventory-system/supabase_scripts/07_create_admin_user.sql)
 
 ## Troubleshooting
 
@@ -175,8 +157,9 @@ If you encounter data visibility issues where stockman users see the same data a
 
 For user management issues:
 1. Ensure you're logged in as an admin user
-2. Navigate to Admin → User Management
-3. Check that the user management page loads correctly
+2. Check that the "User Management" link appears in the sidebar
+3. Navigate to Admin → User Management
+4. Check that the user management page loads correctly
 
 ## Contributing
 
@@ -203,6 +186,7 @@ For support and questions, please contact:
 - [x] Real-time stock movements
 - [x] Role-based access control with proper data isolation
 - [x] Admin user management functionality
+- [x] Proper stock movement tracking with user identification
 - [ ] Advanced analytics and forecasting
 - [ ] Multi-location support
 - [ ] Integration with accounting systems

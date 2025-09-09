@@ -299,7 +299,7 @@ export default function BackupPage() {
                 <div className="text-2xl font-bold">
                   {lastBackup ? new Date(lastBackup).toLocaleDateString() : "Never"}
                 </div>
-                <p className="text-xs text-gray-600">
+                <div className="text-xs text-gray-600">
                   {lastBackup ? (
                     <Badge variant="outline" className="text-green-600 border-green-200">
                       Up to date
@@ -309,7 +309,7 @@ export default function BackupPage() {
                       No backup
                     </Badge>
                   )}
-                </p>
+                </div>
               </CardContent>
             </Card>
           </div>

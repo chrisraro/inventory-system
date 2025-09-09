@@ -265,12 +265,20 @@ export const getStockMovements = async (productId?: string) => {
 }
 
 export const createStockMovement = async (movement: any) => {
+  // First get the current user's profile to get their ID
+  const { data: userProfile, error: profileError } = await getCurrentUserProfile()
+  
+  if (profileError) {
+    console.error("Error fetching user profile:", profileError)
+    return { data: null, error: profileError }
+  }
+
   const { data, error } = await supabase
     .from("stock_movements_simplified")
     .insert([
       {
         ...movement,
-        created_by: "admin", // This should be replaced with actual user ID
+        created_by: userProfile?.id || "admin", // Use actual user ID or fallback to "admin"
       },
     ])
     .select(`

@@ -7,6 +7,7 @@ This document provides instructions to fix the issue where stockman users see th
 1. **Data Visibility Issue**: The Supabase client functions were not filtering data based on user roles
 2. **RLS Policies**: The Row Level Security policies needed to be updated to ensure proper data isolation
 3. **User Management**: User management functionality was already implemented but needed to be verified
+4. **Admin User Setup**: Admin user needed to be properly configured with the correct role
 
 ## Fixes Applied
 
@@ -29,6 +30,12 @@ A new SQL script has been created to ensure proper Row Level Security policies:
 - Regular users can only view their own products and stock movements
 - All users can create, update, and delete their own records
 
+### 3. Admin User Setup Scripts
+
+New SQL scripts have been created to properly set up admin users:
+- [supabase_scripts/06_set_admin_user.sql](file:///C:/Users/User/OneDrive/Desktop/inventory-system/supabase_scripts/06_set_admin_user.sql): Updates existing user to admin role
+- [supabase_scripts/07_create_admin_user.sql](file:///C:/Users/User/OneDrive/Desktop/inventory-system/supabase_scripts/07_create_admin_user.sql): Prepares user profile for admin role
+
 ## Steps to Apply Fixes
 
 ### Step 1: Run the SQL Script
@@ -38,14 +45,27 @@ A new SQL script has been created to ensure proper Row Level Security policies:
 3. Copy and paste the contents of [supabase_scripts/05_complete_rls_fix.sql](file:///C:/Users/User/OneDrive/Desktop/inventory-system/supabase_scripts/05_complete_rls_fix.sql)
 4. Run the script
 
-### Step 2: Test the Application
+### Step 2: Set Up Admin User
+
+1. First, create the admin user through the Supabase Auth dashboard:
+   - Go to Authentication → Users
+   - Click "Add user"
+   - Enter email: admin@petrogreen.com
+   - Set a secure password
+   - Click "Add user"
+
+2. Then, run the appropriate SQL script to set the user as admin:
+   - If the user already exists in auth.users: [supabase_scripts/06_set_admin_user.sql](file:///C:/Users/User/OneDrive/Desktop/inventory-system/supabase_scripts/06_set_admin_user.sql)
+   - If you need to prepare a user profile: [supabase_scripts/07_create_admin_user.sql](file:///C:/Users/User/OneDrive/Desktop/inventory-system/supabase_scripts/07_create_admin_user.sql)
+
+### Step 3: Test the Application
 
 1. Log in as an admin user (admin@petrogreen.com)
    - You should see all products and stock movements
 2. Log in as a stockman user (stockman@petrogreen.com)
    - You should only see products and stock movements created by this user
 
-### Step 3: Test User Management
+### Step 4: Test User Management
 
 1. Log in as an admin user
 2. Navigate to the Admin section → User Management
@@ -74,3 +94,8 @@ If you still experience issues:
 ## Additional Notes
 
 The user management functionality is already implemented in [app/admin/users/page.tsx](file:///C:/Users/User/OneDrive/Desktop/inventory-system/app/admin/users/page.tsx) and should work correctly after applying these fixes.
+
+If you encounter issues with the admin user not having the correct role:
+1. Ensure the user exists in the auth.users table
+2. Run the appropriate admin setup script
+3. Check that the user_profiles table has the correct role for the user

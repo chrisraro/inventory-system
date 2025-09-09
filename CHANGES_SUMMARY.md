@@ -7,6 +7,7 @@ This document summarizes all the changes made to fix the issue where stockman us
 1. **Data Visibility Issue**: Client-side functions in [lib/supabase.ts](file:///C:/Users/User/OneDrive/Desktop/inventory-system/lib/supabase.ts) were not filtering data based on user roles
 2. **RLS Policies**: Database Row Level Security policies needed to be updated for proper data isolation
 3. **User Management**: User management functionality was already implemented but needed verification
+4. **Admin User Setup**: Admin user needed to be properly configured with the correct role
 
 ## Changes Made
 
@@ -39,10 +40,16 @@ Enhanced user profile fetching to check if user account is active:
 Verified and slightly optimized the existing user management functionality:
 - Ensured proper data fetching for admin users
 
-### 6. Documentation Updates
+### 6. Admin User Setup Scripts
+
+Created new SQL scripts to properly set up admin users:
+- [supabase_scripts/06_set_admin_user.sql](file:///C:/Users/User/OneDrive/Desktop/inventory-system/supabase_scripts/06_set_admin_user.sql): Updates existing user to admin role
+- [supabase_scripts/07_create_admin_user.sql](file:///C:/Users/User/OneDrive/Desktop/inventory-system/supabase_scripts/07_create_admin_user.sql): Prepares user profile for admin role
+
+### 7. Documentation Updates
 
 Updated documentation to reflect the changes:
-- [README.md](file:///C:/Users/User/OneDrive/Desktop/inventory-system/README.md): Added information about data visibility rules and troubleshooting
+- [README.md](file:///C:/Users/User/OneDrive/Desktop/inventory-system/README.md): Added information about data visibility rules, troubleshooting, and admin user setup
 - [FIX_INSTRUCTIONS.md](file:///C:/Users/User/OneDrive/Desktop/inventory-system/FIX_INSTRUCTIONS.md): Created detailed instructions for applying the fixes
 - [CHANGES_SUMMARY.md](file:///C:/Users/User/OneDrive/Desktop/inventory-system/CHANGES_SUMMARY.md): This document
 
@@ -60,6 +67,11 @@ Updated documentation to reflect the changes:
 3. They can change user roles between admin and stockman
 4. They can activate/deactivate user accounts
 
+### Admin User Setup
+1. Users must first be created through the Supabase Auth dashboard
+2. Then, SQL scripts can be run to assign the correct role
+3. The user profile is automatically created/updated with the admin role
+
 ## Testing the Fixes
 
 ### Data Visibility
@@ -73,6 +85,11 @@ Updated documentation to reflect the changes:
 2. Navigate to Admin → User Management
 3. Verify you can see all users and change their roles
 
+### Admin User Setup
+1. Create a user through the Supabase Auth dashboard
+2. Run the appropriate SQL script to set the user as admin
+3. Log in and verify admin privileges
+
 ## Files Modified
 
 1. [lib/supabase.ts](file:///C:/Users/User/OneDrive/Desktop/inventory-system/lib/supabase.ts) - Updated client-side data filtering
@@ -80,15 +97,21 @@ Updated documentation to reflect the changes:
 3. [app/admin/users/page.tsx](file:///C:/Users/User/OneDrive/Desktop/inventory-system/app/admin/users/page.tsx) - Minor optimization
 4. [app/api/products/get/[id]/route.ts](file:///C:/Users/User/OneDrive/Desktop/inventory-system/app/api/products/get/%5Bid%5D/route.ts) - New API route for single product access
 5. [supabase_scripts/05_complete_rls_fix.sql](file:///C:/Users/User/OneDrive/Desktop/inventory-system/supabase_scripts/05_complete_rls_fix.sql) - Database RLS policies
-6. [README.md](file:///C:/Users/User/OneDrive/Desktop/inventory-system/README.md) - Documentation updates
-7. [FIX_INSTRUCTIONS.md](file:///C:/Users/User/OneDrive/Desktop/inventory-system/FIX_INSTRUCTIONS.md) - Fix instructions
-8. [CHANGES_SUMMARY.md](file:///C:/Users/User/OneDrive/Desktop/inventory-system/CHANGES_SUMMARY.md) - This document
+6. [supabase_scripts/06_set_admin_user.sql](file:///C:/Users/User/OneDrive/Desktop/inventory-system/supabase_scripts/06_set_admin_user.sql) - Admin user setup script
+7. [supabase_scripts/07_create_admin_user.sql](file:///C:/Users/User/OneDrive/Desktop/inventory-system/supabase_scripts/07_create_admin_user.sql) - Admin user preparation script
+8. [README.md](file:///C:/Users/User/OneDrive/Desktop/inventory-system/README.md) - Documentation updates
+9. [FIX_INSTRUCTIONS.md](file:///C:/Users/User/OneDrive/Desktop/inventory-system/FIX_INSTRUCTIONS.md) - Fix instructions
+10. [CHANGES_SUMMARY.md](file:///C:/Users/User/OneDrive/Desktop/inventory-system/CHANGES_SUMMARY.md) - This document
 
 ## Next Steps
 
 1. Run the SQL script [supabase_scripts/05_complete_rls_fix.sql](file:///C:/Users/User/OneDrive/Desktop/inventory-system/supabase_scripts/05_complete_rls_fix.sql) in your Supabase SQL Editor
-2. Test the application with both admin and stockman users
-3. Verify that user management functionality works correctly
-4. Update any existing documentation as needed
+2. Create the admin user through the Supabase Auth dashboard if it doesn't exist
+3. Run the appropriate SQL script to set the admin user role:
+   - [supabase_scripts/06_set_admin_user.sql](file:///C:/Users/User/OneDrive/Desktop/inventory-system/supabase_scripts/06_set_admin_user.sql) if the user already exists
+   - [supabase_scripts/07_create_admin_user.sql](file:///C:/Users/User/OneDrive/Desktop/inventory-system/supabase_scripts/07_create_admin_user.sql) to prepare a user profile
+4. Test the application with both admin and stockman users
+5. Verify that user management functionality works correctly
+6. Update any existing documentation as needed
 
 These changes ensure proper data isolation while maintaining the functionality needed for both admin and stockman users.
