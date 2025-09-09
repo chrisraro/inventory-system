@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,12 +10,13 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
-import { Package, QrCode, ArrowLeft } from "lucide-react"
+import { Package, QrCode, ArrowLeft, Camera, CameraOff } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/auth-context"
 import ProtectedRoute from "@/components/auth/protected-route"
 import DashboardLayout from "@/components/layout/dashboard-layout"
 import { authenticatedPost } from "@/lib/api-client"
+import jsQR from "jsqr"
 
 export default function AddItemPage() {
   const router = useRouter()
@@ -23,6 +24,14 @@ export default function AddItemPage() {
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [qrCodeFromUrl, setQrCodeFromUrl] = useState<string | null>(null)
+  const [showScanner, setShowScanner] = useState(false)
+  const [isScanning, setIsScanning] = useState(false)
+  const [cameraActive, setCameraActive] = useState(false)
+  
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const scanIntervalRef = useRef<number | null>(null)
 
   const [formData, setFormData] = useState({
     weight_kg: "",
@@ -37,6 +46,149 @@ export default function AddItemPage() {
       setQrCodeFromUrl(qrParam)
     }
   }, [searchParams])
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      stopCamera()
+    }
+  }, [])
+
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: {
+          facingMode: { exact: "environment" }, // Force back camera
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      })
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        streamRef.current = stream
+        setCameraActive(true)
+        
+        videoRef.current.play().catch(console.error)
+        
+        // Start QR scanning after a short delay
+        setTimeout(() => {
+          startQRScanning()
+        }, 1000)
+      }
+    } catch (error) {
+      console.error("Camera error:", error)
+      // If exact back camera fails, try with preferred back camera
+      try {
+        const fallbackStream = await navigator.mediaDevices.getUserMedia({ 
+          video: {
+            facingMode: "environment", // Prefer back camera (not exact)
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
+        })
+        
+        if (videoRef.current) {
+          videoRef.current.srcObject = fallbackStream
+          streamRef.current = fallbackStream
+          setCameraActive(true)
+          
+          videoRef.current.play().catch(console.error)
+          
+          setTimeout(() => {
+            startQRScanning()
+          }, 1000)
+        }
+      } catch (fallbackError) {
+        console.error("Fallback camera error:", fallbackError)
+        toast({
+          title: "Camera Error",
+          description: "Unable to access back camera. Please check permissions.",
+          variant: "destructive",
+        })
+      }
+    }
+  }
+
+  const stopCamera = () => {
+    if (scanIntervalRef.current) {
+      clearInterval(scanIntervalRef.current)
+      scanIntervalRef.current = null
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop())
+      streamRef.current = null
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null
+    }
+    setCameraActive(false)
+    setIsScanning(false)
+  }
+
+  const startQRScanning = () => {
+    if (!videoRef.current || !canvasRef.current) return
+    
+    setIsScanning(true)
+    
+    scanIntervalRef.current = window.setInterval(() => {
+      scanForQR()
+    }, 500) // Check for QR codes every 500ms
+  }
+
+  const scanForQR = () => {
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    
+    if (!video || !canvas || video.readyState !== video.HAVE_ENOUGH_DATA) {
+      return
+    }
+    
+    const context = canvas.getContext('2d')
+    if (!context) return
+    
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    context.drawImage(video, 0, 0)
+    
+    const imageData = context.getImageData(0, 0, canvas.width, canvas.height)
+    const qrCode = jsQR(imageData.data, imageData.width, imageData.height)
+    
+    if (qrCode) {
+      handleQRDetected(qrCode.data)
+    }
+  }
+
+  const handleQRDetected = (qrData: string) => {
+    console.log("QR Code detected:", qrData)
+    
+    // Clean the QR data
+    const cleanQRData = qrData.trim().toUpperCase().replace('LPG-', '')
+    
+    // Stop scanning after detection
+    if (scanIntervalRef.current) {
+      clearInterval(scanIntervalRef.current)
+      scanIntervalRef.current = null
+      setIsScanning(false)
+    }
+    
+    // Set the QR code
+    setQrCodeFromUrl(cleanQRData)
+    setShowScanner(false)
+    stopCamera()
+    
+    toast({
+      title: "QR Code Scanned",
+      description: `Successfully scanned: ${cleanQRData}`,
+    })
+  }
+
+  const handleManualQRInput = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (qrCodeFromUrl) {
+      setShowScanner(false)
+    }
+  }
 
   const handleWeightChange = (weight: string) => {
     setFormData((prev) => ({
@@ -148,7 +300,79 @@ export default function AddItemPage() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
-                {qrCodeFromUrl && (
+                {/* QR Code Section */}
+                {!qrCodeFromUrl ? (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="qr_code">QR Code *</Label>
+                      <div className="flex space-x-2">
+                        <Input
+                          id="qr_code"
+                          value={qrCodeFromUrl || ""}
+                          onChange={(e) => setQrCodeFromUrl(e.target.value)}
+                          placeholder="Scan QR code or enter manually"
+                          required
+                        />
+                        <Button type="button" onClick={() => setShowScanner(!showScanner)}>
+                          <QrCode className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* QR Scanner */}
+                    {showScanner && (
+                      <div className="space-y-4">
+                        <div className="relative bg-black rounded-lg overflow-hidden aspect-video">
+                          <video
+                            ref={videoRef}
+                            autoPlay
+                            playsInline
+                            muted
+                            className="w-full h-full object-cover"
+                          />
+                          
+                          {/* Hidden canvas for QR detection */}
+                          <canvas ref={canvasRef} style={{ display: 'none' }} />
+                          
+                          {/* Scanning overlay */}
+                          {cameraActive && isScanning && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="w-64 h-64 border-2 border-green-400 rounded-lg relative">
+                                <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-green-400 rounded-tl-lg"></div>
+                                <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-green-400 rounded-tr-lg"></div>
+                                <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-green-400 rounded-bl-lg"></div>
+                                <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-green-400 rounded-br-lg"></div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {!cameraActive && (
+                            <div className="absolute inset-0 flex items-center justify-center text-white">
+                              <div className="text-center">
+                                <Camera className="h-16 w-16 mx-auto mb-4" />
+                                <p>Camera not active</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="flex justify-center space-x-2">
+                          {!cameraActive ? (
+                            <Button type="button" onClick={startCamera}>
+                              <Camera className="h-4 w-4 mr-2" />
+                              Start Camera
+                            </Button>
+                          ) : (
+                            <Button type="button" onClick={stopCamera} variant="outline">
+                              <CameraOff className="h-4 w-4 mr-2" />
+                              Stop Camera
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
                   <>
                     {/* QR Code Information */}
                     <div className="space-y-3 bg-green-50 p-4 rounded-lg border border-green-200">
@@ -164,6 +388,14 @@ export default function AddItemPage() {
                           <strong>Product ID:</strong> LPG-{qrCodeFromUrl.toUpperCase().replace('LPG-', '')}
                         </p>
                       </div>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setQrCodeFromUrl(null)}
+                      >
+                        Rescan QR Code
+                      </Button>
                     </div>
                     
                     <Separator />
