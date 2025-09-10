@@ -17,15 +17,19 @@ export async function GET(request: NextRequest) {
     }
 
     // Use the QR code directly (preserve exact case and special characters)
-    const productId = qrCode
+    const productId = qrCode.trim()
+    console.log("Checking QR code:", productId)
 
     // Check if product exists with this QR code
     // For stock movements, allow any authenticated user to access any product
+    // In simplified system, both id and qr_code fields contain the raw QR code
     const { data: product, error } = await supabase
       .from('products_simplified')
       .select('*')
-      .eq('qr_code', productId)
+      .eq('qr_code', productId) // Check by qr_code field
       .single()
+
+    console.log("Product lookup result:", { product, error })
 
     if (error && error.code !== 'PGRST116') {
       console.error('Database error:', error)
@@ -42,7 +46,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       exists: !!product,
       product: product || null,
-      qrCode,
+      qrCode: productId,
       productId
     })
 

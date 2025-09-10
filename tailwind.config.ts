@@ -26,49 +26,49 @@ const config = {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         primary: {
-          DEFAULT: "#8B4513", // Saddle Brown - matches logo
-          50: "#FDF6F0",
-          100: "#F9E6D3",
-          200: "#F2CCA7",
-          300: "#E8A870",
-          400: "#D4813A",
-          500: "#C4621A",
-          600: "#B54E15",
-          700: "#963D15",
-          800: "#7A3318",
-          900: "#652B16",
-          950: "#371408",
-          foreground: "hsl(var(--primary-foreground))",
+          DEFAULT: "rgb(113, 182, 170)", // New primary color
+          50: "#f0f9f8",
+          100: "#d9f0ee",
+          200: "#b3e1dd",
+          300: "#8dd2cc",
+          400: "#67c3bb",
+          500: "rgb(113, 182, 170)", // 500 matches DEFAULT
+          600: "#459a8f",
+          700: "#34756b",
+          800: "#235048",
+          900: "#112b25",
+          950: "#0a1a16",
+          foreground: "rgb(9, 78, 87)", // New primary-foreground color
         },
         secondary: {
-          DEFAULT: "#D2691E", // Chocolate - complementary to primary
-          50: "#FEF7F0",
-          100: "#FDEBD8",
-          200: "#FAD4B1",
-          300: "#F6B680",
-          400: "#F0914D",
-          500: "#EA7527",
-          600: "#DB5F1D",
-          700: "#B64B1B",
-          800: "#913D1E",
-          900: "#75331C",
-          950: "#3F180C",
-          foreground: "hsl(var(--secondary-foreground))",
+          DEFAULT: "rgb(9, 78, 87)", // New secondary color
+          50: "#e6f0f1",
+          100: "#cde1e2",
+          200: "#9bc3c6",
+          300: "#69a5aa",
+          400: "#37878e",
+          500: "rgb(9, 78, 87)", // 500 matches DEFAULT
+          600: "#074f58",
+          700: "#053b42",
+          800: "#04272c",
+          900: "#021316",
+          950: "#010c0f",
+          foreground: "#ffffff", // White foreground for dark secondary
         },
         accent: {
-          DEFAULT: "#CD853F", // Peru - warm accent
-          50: "#FDF8F3",
-          100: "#FAEDE0",
-          200: "#F4D8C0",
-          300: "#ECBC95",
-          400: "#E19968",
-          500: "#D87D47",
-          600: "#CA653C",
-          700: "#A85034",
-          800: "#874132",
-          900: "#6E372C",
-          950: "#3B1C16",
-          foreground: "hsl(var(--accent-foreground))",
+          DEFAULT: "#ffffff", // White as accent
+          50: "#f8fafc",
+          100: "#f1f5f9",
+          200: "#e2e8f0",
+          300: "#cbd5e1",
+          400: "#94a3b8",
+          500: "#64748b",
+          600: "#475569",
+          700: "#334155",
+          800: "#1e293b",
+          900: "#0f172a",
+          950: "#020617",
+          foreground: "rgb(9, 78, 87)", // Dark foreground for light accent
         },
         destructive: {
           DEFAULT: "#DC2626", // Red for alerts
@@ -86,13 +86,11 @@ const config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // Brand colors from logo
+        // Brand colors using new palette
         brand: {
-          brown: "#8B4513",
-          chocolate: "#D2691E",
-          peru: "#CD853F",
-          tan: "#D2B48C",
-          cream: "#F5F5DC",
+          primary: "rgb(113, 182, 170)",
+          secondary: "rgb(9, 78, 87)",
+          white: "#ffffff",
         },
         // Material Design 3 surface colors
         surface: {

@@ -133,27 +133,31 @@ export async function POST(request: NextRequest) {
     }
 
     // Get current product to check its current status
-    // Both admin and stockman can access any product
+    // In the simplified system, both admin and stockman can access any product
     const { data: product, error: productError } = await supabaseAdmin
       .from('products_simplified')
-      .select('id, status')
-      .eq('id', movementData.product_id)
+      .select('id, status, qr_code')
+      .eq('id', movementData.product_id) // In simplified system, id is the QR code
       .single()
 
     if (productError || !product) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 })
     }
 
-    // Validate status transition
+    // Validate status transition - prevent setting to the same status
     if (product.status === movementData.to_status) {
-      return NextResponse.json({ error: 'Product is already in the specified status' }, { status: 400 })
+      return NextResponse.json({ 
+        error: 'Product is already in the specified status',
+        currentStatus: product.status,
+        requestedStatus: movementData.to_status
+      }, { status: 400 })
     }
 
     // Create the movement record
     const { data: movement, error } = await supabaseAdmin
       .from('stock_movements_simplified')
       .insert([{
-        product_id: movementData.product_id,
+        product_id: product.id, // Use the actual product ID (QR code)
         from_status: product.status,
         to_status: movementData.to_status,
         movement_type: movementData.movement_type,
@@ -177,8 +181,15 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Database error:', error)
+      // Check for specific constraint violations
+      if (error.code === '23505') { // Unique violation
+        return NextResponse.json({ error: 'Movement already recorded for this product status' }, { status: 409 })
+      }
       return NextResponse.json({ error: 'Failed to create stock movement' }, { status: 500 })
     }
+
+    // Note: The product status is automatically updated by the database trigger
+    // update_product_status_on_movement, so we don't need to manually update it here
 
     return NextResponse.json({ movement })
 

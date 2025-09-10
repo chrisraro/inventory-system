@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Use the QR code directly as the product ID (preserve exact case and special characters)
+    // In simplified system, both id and qr_code fields contain the raw QR code
     const productId = productData.qr_code
 
     // Check if product with this QR code already exists
@@ -47,8 +48,8 @@ export async function POST(request: NextRequest) {
 
     // Create simplified product data
     const simplifiedProduct = {
-      id: productId,
-      qr_code: productId,
+      id: productId, // Raw QR code as ID
+      qr_code: productId, // Raw QR code also in qr_code field for clarity
       weight_kg: parseFloat(productData.weight_kg),
       unit_cost: parseFloat(productData.unit_cost),
       supplier: productData.supplier || null,
@@ -75,6 +76,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create product' }, { status: 500 })
     }
 
+    console.log("Product created with raw QR code:", product)
     return NextResponse.json({ product })
 
   } catch (error) {

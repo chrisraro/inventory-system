@@ -267,7 +267,7 @@ export default function StockMovementsPage() {
         setScannedProduct(data.product)
         setFormData(prev => ({ 
           ...prev, 
-          product_id: data.product.id,
+          product_id: data.product.id, // Use the product ID which is the QR code
           to_status: "", // Reset other fields
           movement_type: "",
           reason: "",
@@ -288,7 +288,7 @@ export default function StockMovementsPage() {
           variant: "destructive",
         })
         // Restart scanning if product not found
-        if (scanIntervalRef.current === null && cameraActive) {
+        if (!scanIntervalRef.current && cameraActive) {
           startQRScanning()
         }
       }
@@ -300,7 +300,7 @@ export default function StockMovementsPage() {
         variant: "destructive",
       })
       // Restart scanning after error
-      if (scanIntervalRef.current === null && cameraActive) {
+      if (!scanIntervalRef.current && cameraActive) {
         startQRScanning()
       }
     }
@@ -321,7 +321,7 @@ export default function StockMovementsPage() {
           setScannedProduct(data.product)
           setFormData(prev => ({ 
             ...prev, 
-            product_id: data.product.id,
+            product_id: data.product.id, // Use the product ID which is the QR code
             to_status: "", // Reset other fields
             movement_type: "",
             reason: "",
@@ -329,6 +329,7 @@ export default function StockMovementsPage() {
             reference_number: ""
           }))
           setShowMovementForm(true)
+          setManualQrInput("") // Clear the input field
           toast({
             title: "Product Found",
             description: `Successfully found: ${cleanQR}`,
@@ -382,7 +383,27 @@ export default function StockMovementsPage() {
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || `Failed to create movement (Status: ${response.status})`)
+        // Handle specific error cases
+        if (errorData.error === 'Product is already in the specified status') {
+          toast({
+            title: "Status Unchanged",
+            description: `Product is already in ${formData.to_status} status. Please select a different status.`,
+            variant: "destructive",
+          })
+        } else if (errorData.error === 'Product not found') {
+          toast({
+            title: "Product Not Found",
+            description: "The specified product could not be found in the system.",
+            variant: "destructive",
+          })
+        } else {
+          toast({
+            title: "Error",
+            description: errorData.error || `Failed to create movement (Status: ${response.status})`,
+            variant: "destructive",
+          })
+        }
+        return
       }
 
       toast({

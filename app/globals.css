@@ -4,25 +4,25 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222.2 84% 4.9%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96%;
-    --accent-foreground: 222.2 84% 4.9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
+    --background: 0 0% 100%; /* White background */
+    --foreground: 200 89% 19%; /* rgb(9, 78, 87) converted to HSL */
+    --card: 0 0% 100%; /* White card */
+    --card-foreground: 200 89% 19%; /* rgb(9, 78, 87) converted to HSL */
+    --popover: 0 0% 100%; /* White popover */
+    --popover-foreground: 200 89% 19%; /* rgb(9, 78, 87) converted to HSL */
+    --primary: 170 23% 58%; /* rgb(113, 182, 170) converted to HSL */
+    --primary-foreground: 200 89% 19%; /* rgb(9, 78, 87) converted to HSL */
+    --secondary: 200 89% 19%; /* rgb(9, 78, 87) converted to HSL */
+    --secondary-foreground: 0 0% 100%; /* White foreground */
+    --muted: 0 0% 96%; /* Light gray muted */
+    --muted-foreground: 215 16% 47%; /* Gray foreground */
+    --accent: 0 0% 100%; /* White accent */
+    --accent-foreground: 200 89% 19%; /* rgb(9, 78, 87) converted to HSL */
+    --destructive: 0 84% 60%; /* Red for alerts */
+    --destructive-foreground: 0 0% 100%; /* White foreground */
+    --border: 0 0% 92%; /* Light border */
+    --input: 0 0% 92%; /* Light input */
+    --ring: 170 23% 58%; /* rgb(113, 182, 170) converted to HSL */
     --radius: 0.5rem;
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
@@ -30,22 +30,22 @@
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     /* Material Design 3 surface tokens */
-    --surface: 0 0% 100%;
-    --surface-variant: 25 10% 96%;
-    --surface-container: 25 8% 98%;
-    --surface-container-low: 25 5% 99%;
-    --surface-container-high: 25 12% 95%;
-    --surface-container-highest: 25 15% 93%;
-    --outline: 25 8% 75%;
-    --outline-variant: 25 5% 85%;
+    --surface: 0 0% 100%; /* White surface */
+    --surface-variant: 0 0% 98%; /* Very light gray */
+    --surface-container: 0 0% 99%; /* Almost white */
+    --surface-container-low: 0 0% 99.5%; /* Nearly white */
+    --surface-container-high: 0 0% 97%; /* Light gray */
+    --surface-container-highest: 0 0% 95%; /* Slightly darker gray */
+    --outline: 0 0% 85%; /* Medium gray outline */
+    --outline-variant: 0 0% 90%; /* Light gray outline */
 
     /* Enhanced color tokens */
-    --success: 142 76% 36%;
-    --success-foreground: 355 7% 97%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 48 96% 89%;
-    --info: 221 83% 53%;
-    --info-foreground: 210 40% 98%;
+    --success: 142 76% 36%; /* Green for success */
+    --success-foreground: 0 0% 100%; /* White foreground */
+    --warning: 38 92% 50%; /* Orange for warning */
+    --warning-foreground: 0 0% 100%; /* White foreground */
+    --info: 170 23% 58%; /* rgb(113, 182, 170) for info */
+    --info-foreground: 200 89% 19%; /* rgb(9, 78, 87) foreground */
 
     /* Z-index scale */
     --z-dropdown: 1000;
@@ -59,47 +59,47 @@
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 84% 4.9%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 94.1%;
+    --background: 200 89% 19%; /* rgb(9, 78, 87) as dark background */
+    --foreground: 0 0% 100%; /* White foreground */
+    --card: 200 89% 19%; /* rgb(9, 78, 87) card */
+    --card-foreground: 0 0% 100%; /* White card foreground */
+    --popover: 200 89% 19%; /* rgb(9, 78, 87) popover */
+    --popover-foreground: 0 0% 100%; /* White popover foreground */
+    --primary: 170 23% 58%; /* rgb(113, 182, 170) primary */
+    --primary-foreground: 200 89% 19%; /* rgb(9, 78, 87) primary foreground */
+    --secondary: 170 23% 58%; /* rgb(113, 182, 170) secondary */
+    --secondary-foreground: 0 0% 100%; /* White secondary foreground */
+    --muted: 200 89% 15%; /* Darker muted */
+    --muted-foreground: 0 0% 80%; /* Light gray foreground */
+    --accent: 0 0% 100%; /* White accent */
+    --accent-foreground: 200 89% 19%; /* rgb(9, 78, 87) accent foreground */
+    --destructive: 0 63% 31%; /* Darker red for alerts */
+    --destructive-foreground: 0 0% 100%; /* White foreground */
+    --border: 200 89% 12%; /* Dark border */
+    --input: 200 89% 12%; /* Dark input */
+    --ring: 170 23% 58%; /* rgb(113, 182, 170) ring */
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
     /* Dark mode surface tokens */
-    --surface: 20 14.3% 4.1%;
-    --surface-variant: 25 10% 8%;
-    --surface-container: 25 8% 6%;
-    --surface-container-low: 25 5% 4%;
-    --surface-container-high: 25 12% 10%;
-    --surface-container-highest: 25 15% 14%;
-    --outline: 25 8% 40%;
-    --outline-variant: 25 5% 25%;
+    --surface: 200 89% 15%; /* Dark surface */
+    --surface-variant: 200 89% 12%; /* Darker variant */
+    --surface-container: 200 89% 10%; /* Even darker container */
+    --surface-container-low: 200 89% 8%; /* Lowest container */
+    --surface-container-high: 200 89% 18%; /* Higher container */
+    --surface-container-highest: 200 89% 20%; /* Highest container */
+    --outline: 200 89% 25%; /* Outline in dark mode */
+    --outline-variant: 200 89% 20%; /* Outline variant in dark mode */
 
     /* Enhanced dark mode colors */
-    --success: 142 76% 50%;
-    --success-foreground: 142 76% 10%;
-    --warning: 38 92% 60%;
-    --warning-foreground: 38 92% 10%;
-    --info: 221 83% 65%;
-    --info-foreground: 221 83% 10%;
+    --success: 142 76% 50%; /* Brighter green */
+    --success-foreground: 0 0% 0%; /* Black foreground */
+    --warning: 38 92% 60%; /* Brighter orange */
+    --warning-foreground: 0 0% 0%; /* Black foreground */
+    --info: 170 23% 58%; /* rgb(113, 182, 170) info */
+    --info-foreground: 200 89% 19%; /* rgb(9, 78, 87) foreground */
   }
 }
 
