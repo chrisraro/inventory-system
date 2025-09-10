@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Camera, CameraOff, Flashlight, FlashlightOff, Scan, X } from "lucide-react"
 import { toast } from "sonner"
-import { parseQRData, getProductByQRData } from "@/lib/supabase"
 import jsQR from "jsqr"
 
 interface QRCodeScannerProps {
@@ -137,26 +136,19 @@ export function QRCodeScanner({ onScan, onClose }: QRCodeScannerProps) {
 
     setLastScanned(qrData)
 
-    // No longer removing LPG- prefix
-    const cleanQRData = qrData.trim().toUpperCase()
+    // No longer removing LPG- prefix, preserve exact case and special characters
+    const cleanQRData = qrData.trim()
 
-    // Get product data
-    const { data: product, error } = await getProductByQRData(cleanQRData)
-
-    if (error) {
-      toast.error("Product not found for this QR code")
-      onScan(cleanQRData)
-    } else {
-      toast.success(`Product found: ${product?.name}`)
-      onScan(cleanQRData, product)
-    }
+    // Instead of using undefined functions, we'll just return the QR data
+    toast.success(`QR Code scanned: ${cleanQRData}`)
+    onScan(cleanQRData)
   }
 
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!manualInput.trim()) return
 
-    // No longer removing LPG- prefix
+    // No longer removing LPG- prefix, preserve exact case and special characters
     await handleQRDetected(manualInput.trim())
     setManualInput("")
   }

@@ -16,8 +16,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Use the QR code directly (no LPG- prefix removal)
-    const productId = qrCode.toUpperCase()
+    // Use the QR code directly (preserve exact case and special characters)
+    const productId = qrCode
 
     // Check if product exists with this QR code
     // For stock movements, allow any authenticated user to access any product

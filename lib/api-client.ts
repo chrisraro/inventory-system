@@ -6,9 +6,38 @@ import { supabase } from '@/lib/supabase'
 export async function getAuthToken(): Promise<string | null> {
   try {
     const { data: { session }, error } = await supabase.auth.getSession()
-    if (error || !session?.access_token) {
+    if (error) {
+      console.error('Error getting session:', error)
       return null
     }
+    
+    if (!session?.access_token) {
+      return null
+    }
+    
+    // Check if token is expired or about to expire (within 60 seconds)
+    const expirationTime = session.expires_at ? session.expires_at * 1000 : 0
+    const now = Date.now()
+    const timeUntilExpiration = expirationTime - now
+    
+    // If token expires within 60 seconds, try to refresh it
+    if (timeUntilExpiration < 60000) {
+      try {
+        const { data: refreshedSession, error: refreshError } = await supabase.auth.refreshSession()
+        if (refreshError) {
+          console.error('Error refreshing session:', refreshError)
+          return null
+        }
+        
+        if (refreshedSession?.access_token) {
+          return refreshedSession.access_token
+        }
+      } catch (refreshError) {
+        console.error('Error during token refresh:', refreshError)
+        return null
+      }
+    }
+    
     return session.access_token
   } catch (error) {
     console.error('Error getting auth token:', error)

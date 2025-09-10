@@ -117,7 +117,20 @@ export function useProducts(): UseProductsReturn {
       
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to delete product')
+        
+        // Handle specific error cases
+        if (response.status === 404) {
+          // Product not found - this is not an error for the user
+          // Just refetch the products to ensure UI is up to date
+          await fetchProducts()
+          return { success: true }
+        } else if (response.status === 503 && errorData.code === 'TABLES_NOT_FOUND') {
+          // Database setup required
+          return { success: false, error: "Database setup required. Please run the database migration script in Supabase SQL Editor first." }
+        } else {
+          // General error
+          throw new Error(errorData.error || 'Failed to delete product')
+        }
       }
 
       await fetchProducts()

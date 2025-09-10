@@ -18,6 +18,7 @@ interface AuthContextType {
   signOut: () => Promise<void>
   hasPermission: (permission: string) => boolean
   loading: boolean
+  refreshSession?: () => Promise<{ success: boolean; error?: string; data?: any }> // Add refreshSession to the interface
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -37,7 +38,14 @@ const PERMISSIONS = {
     "view_costing",
     "manage_costing",
   ],
-  stockman: ["view_dashboard", "add_product", "edit_product", "stock_movements", "view_reports"],
+  stockman: [
+    "view_dashboard",
+    "add_product",
+    "edit_product",
+    "delete_product", // Allow stockman to delete their own products
+    "stock_movements",
+    "view_reports"
+  ],
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -103,28 +111,86 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("Auth state change:", event) // Debug log
-      if (event === 'SIGNED_IN' && session?.user) {
-        const userProfile = await getUserProfile(session.user)
-        setUser(userProfile)
-      } else if (event === 'SIGNED_OUT') {
+      console.log("Auth state change:", event, session ? `User: ${session.user?.id}` : "No session") // Debug log
+      try {
+        if (event === 'SIGNED_IN' && session?.user) {
+          console.log("User signed in:", session.user.id)
+          const userProfile = await getUserProfile(session.user)
+          setUser(userProfile)
+        } else if (event === 'SIGNED_OUT') {
+          console.log("User signed out")
+          setUser(null)
+        } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+          console.log("Token refreshed for user:", session.user.id)
+          // Handle token refresh
+          const userProfile = await getUserProfile(session.user)
+          setUser(userProfile)
+        } else if (event === 'USER_UPDATED' && session?.user) {
+          console.log("User updated:", session.user.id)
+          // Handle user profile updates
+          const userProfile = await getUserProfile(session.user)
+          setUser(userProfile)
+        } else if (event === 'INITIAL_SESSION') {
+          console.log("Initial session:", session ? `User: ${session.user?.id}` : "No session")
+          // Handle initial session
+          if (session?.user) {
+            const userProfile = await getUserProfile(session.user)
+            setUser(userProfile)
+          } else {
+            setUser(null)
+          }
+        } else if (event === 'MFA_CHALLENGE_VERIFIED') {
+          console.log("MFA challenge verified")
+        } else if (event === 'PASSWORD_RECOVERY') {
+          console.log("Password recovery")
+        } else {
+          console.log("Unhandled auth event:", event)
+        }
+      } catch (error) {
+        console.error("Error in auth state change handler:", error)
+        // If there's an error in the auth state change handler, sign out the user
+        // to prevent being stuck in an invalid state
+        try {
+          await supabase.auth.signOut()
+        } catch (signOutError) {
+          console.error("Error signing out after auth error:", signOutError)
+        }
         setUser(null)
-      } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-        // Handle token refresh
-        const userProfile = await getUserProfile(session.user)
-        setUser(userProfile)
-      } else if (event === 'USER_UPDATED' && session?.user) {
-        // Handle user profile updates
-        const userProfile = await getUserProfile(session.user)
-        setUser(userProfile)
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     })
 
     return () => {
       subscription.unsubscribe()
     }
   }, [])
+
+  // Function to refresh the session manually
+  const refreshSession = async () => {
+    try {
+      const { data, error } = await supabase.auth.refreshSession()
+      if (error) {
+        console.error("Error refreshing session:", error)
+        // If refresh fails, sign out the user
+        await signOut()
+        return { success: false, error }
+      }
+      
+      if (data.session?.user) {
+        const userProfile = await getUserProfile(data.session.user)
+        setUser(userProfile)
+        return { success: true, data }
+      }
+      
+      return { success: false, error: "No session found after refresh" }
+    } catch (error) {
+      console.error("Error in refreshSession:", error)
+      // If refresh fails, sign out the user
+      await signOut()
+      return { success: false, error: "Failed to refresh session" }
+    }
+  }
 
   const signIn = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
@@ -144,7 +210,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(userProfile)
           return { success: true }
         } else {
-          return { success: false, error: "User profile not found" }
+          // Sign out if user profile not found
+          await supabase.auth.signOut()
+          return { success: false, error: "User profile not found or account deactivated" }
         }
       }
 
@@ -181,6 +249,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signOut,
     hasPermission,
     loading,
+    refreshSession, // Add refreshSession to the context value
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

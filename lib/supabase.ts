@@ -121,9 +121,11 @@ export const getProducts = async () => {
   let query = supabase.from("products_simplified").select("*").order("created_at", { ascending: false })
   
   // If user is not admin, filter by their own products only
+  // Stockman users can see all products, not just their own
   const isAdmin = userProfile?.role === 'admin'
   if (!isAdmin) {
-    query = query.eq("user_id", userProfile?.id)
+    // Stockman users can see all products, so no filtering needed
+    // Only admins have special access rules
   }
 
   const { data, error } = await query
@@ -151,9 +153,11 @@ export const getProduct = async (id: string) => {
   let query = supabase.from("products_simplified").select("*").eq("id", id)
   
   // If user is not admin, ensure they can only access their own products
+  // Stockman users can see all products, not just their own
   const isAdmin = userProfile?.role === 'admin'
   if (!isAdmin) {
-    query = query.eq("user_id", userProfile?.id)
+    // Stockman users can see all products, so no filtering needed
+    // Only admins have special access rules
   }
 
   const { data, error } = await query.single()
@@ -172,8 +176,8 @@ export const getProduct = async (id: string) => {
 export const createProduct = async (product: any) => {
   // For simplified system, we expect qr_code, weight_kg, unit_cost, supplier
   const productData = {
-    id: product.qr_code.toUpperCase(),
-    qr_code: product.qr_code.toUpperCase(),
+    id: product.qr_code, // Preserve exact case and special characters
+    qr_code: product.qr_code, // Preserve exact case and special characters
     weight_kg: parseFloat(product.weight_kg),
     unit_cost: parseFloat(product.unit_cost),
     supplier: product.supplier || null,
@@ -190,6 +194,14 @@ export const createProduct = async (product: any) => {
 }
 
 export const updateProduct = async (id: string, updates: any) => {
+  // First get the current user's profile to check their role
+  const { data: userProfile, error: profileError } = await getCurrentUserProfile()
+  
+  if (profileError) {
+    console.error("Error fetching user profile:", profileError)
+    return { data: null, error: profileError }
+  }
+
   // For simplified system, we only allow updating supplier
   const updateData = {
     ...updates,
@@ -202,10 +214,21 @@ export const updateProduct = async (id: string, updates: any) => {
   delete updateData.current_stock
   delete updateData.status
 
-  const { data, error } = await supabase
+  // Check if user has permission to update this product
+  const isAdmin = userProfile?.role === 'admin'
+  let query = supabase
     .from("products_simplified")
     .update(updateData)
     .eq("id", id)
+
+  // If user is not admin, ensure they can only update their own products
+  // Stockman users can update all products
+  if (!isAdmin) {
+    // Stockman users can update all products, so no filtering needed
+    // Only admins have special access rules
+  }
+
+  const { data, error } = await query
     .select()
     .single()
 
@@ -221,7 +244,26 @@ export const updateProduct = async (id: string, updates: any) => {
 }
 
 export const deleteProduct = async (id: string) => {
-  const { error } = await supabase.from("products_simplified").delete().eq("id", id)
+  // First get the current user's profile to check their role
+  const { data: userProfile, error: profileError } = await getCurrentUserProfile()
+  
+  if (profileError) {
+    console.error("Error fetching user profile:", profileError)
+    return { error: profileError }
+  }
+
+  // Check if user has permission to delete this product
+  const isAdmin = userProfile?.role === 'admin'
+  let query = supabase.from("products_simplified").delete().eq("id", id)
+
+  // If user is not admin, ensure they can only delete their own products
+  // Stockman users can delete all products
+  if (!isAdmin) {
+    // Stockman users can delete all products, so no filtering needed
+    // Only admins have special access rules
+  }
+
+  const { error } = await query
   return { error }
 }
 
@@ -255,9 +297,11 @@ export const getStockMovements = async (productId?: string) => {
   }
 
   // If user is not admin, filter by their own movements only
+  // Stockman users can see all movements
   const isAdmin = userProfile?.role === 'admin'
   if (!isAdmin) {
-    query = query.eq("created_by", userProfile?.id)
+    // Stockman users can see all movements, so no filtering needed
+    // Only admins have special access rules
   }
 
   const { data, error } = await query

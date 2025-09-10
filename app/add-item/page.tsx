@@ -161,8 +161,8 @@ export default function AddItemPage() {
   const handleQRDetected = (qrData: string) => {
     console.log("QR Code detected:", qrData)
     
-    // Clean the QR data (no longer removing LPG- prefix)
-    const cleanQRData = qrData.trim().toUpperCase()
+    // Clean the QR data (preserve exact case and special characters)
+    const cleanQRData = qrData.trim()
     
     // Stop scanning after detection
     if (scanIntervalRef.current) {
@@ -186,8 +186,8 @@ export default function AddItemPage() {
   const handleManualQRSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (manualQrInput.trim()) {
-      // No longer removing LPG- prefix
-      const cleanQR = manualQrInput.trim().toUpperCase()
+      // No longer removing LPG- prefix, preserve exact case and special characters
+      const cleanQR = manualQrInput.trim()
       setQrCodeFromUrl(cleanQR)
     }
   }

@@ -247,8 +247,8 @@ export default function StockMovementsPage() {
   const handleQRDetected = async (qrData: string) => {
     console.log("QR Code detected:", qrData)
     
-    // Clean the QR data (no longer removing LPG- prefix)
-    const cleanQRData = qrData.trim().toUpperCase()
+    // Clean the QR data (preserve exact case and special characters)
+    const cleanQRData = qrData.trim()
     
     // Stop scanning after detection
     if (scanIntervalRef.current) {
@@ -257,19 +257,26 @@ export default function StockMovementsPage() {
       setIsScanning(false)
     }
     
-    // Set the QR code
-    setShowScanner(false)
-    stopCamera()
-    
     // Check if product exists
     try {
       const response = await fetch(`/api/products/check-qr?qr=${encodeURIComponent(cleanQRData)}`)
       const data = await response.json()
       
       if (data.exists && data.product) {
+        // Set the scanned product and form data
         setScannedProduct(data.product)
-        setFormData(prev => ({ ...prev, product_id: data.product.id }))
+        setFormData(prev => ({ 
+          ...prev, 
+          product_id: data.product.id,
+          to_status: "", // Reset other fields
+          movement_type: "",
+          reason: "",
+          notes: "",
+          reference_number: ""
+        }))
         setShowMovementForm(true)
+        setShowScanner(false)
+        stopCamera()
         toast({
           title: "Product Found",
           description: `Successfully scanned: ${cleanQRData}`,
@@ -280,6 +287,10 @@ export default function StockMovementsPage() {
           description: "This QR code is not registered in the system",
           variant: "destructive",
         })
+        // Restart scanning if product not found
+        if (scanIntervalRef.current === null && cameraActive) {
+          startQRScanning()
+        }
       }
     } catch (error) {
       console.error("Error checking product:", error)
@@ -288,14 +299,18 @@ export default function StockMovementsPage() {
         description: "Failed to check product in database",
         variant: "destructive",
       })
+      // Restart scanning after error
+      if (scanIntervalRef.current === null && cameraActive) {
+        startQRScanning()
+      }
     }
   }
 
   const handleManualQRSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (manualQrInput.trim()) {
-      // No longer removing LPG- prefix
-      const cleanQR = manualQrInput.trim().toUpperCase()
+      // No longer removing LPG- prefix, preserve exact case and special characters
+      const cleanQR = manualQrInput.trim()
       
       // Check if product exists
       try {
@@ -304,7 +319,15 @@ export default function StockMovementsPage() {
         
         if (data.exists && data.product) {
           setScannedProduct(data.product)
-          setFormData(prev => ({ ...prev, product_id: data.product.id }))
+          setFormData(prev => ({ 
+            ...prev, 
+            product_id: data.product.id,
+            to_status: "", // Reset other fields
+            movement_type: "",
+            reason: "",
+            notes: "",
+            reference_number: ""
+          }))
           setShowMovementForm(true)
           toast({
             title: "Product Found",
@@ -419,7 +442,20 @@ export default function StockMovementsPage() {
                 <Scan className="h-4 w-4 mr-2" />
                 {showScanner ? "Close Scanner" : "Scan QR Code"}
               </Button>
-              <Button variant="outline" onClick={() => setShowMovementForm(true)} className="w-full sm:w-auto">
+              <Button variant="outline" onClick={() => {
+                // Reset form when opening manual entry
+                setFormData({
+                  product_id: "",
+                  to_status: "",
+                  movement_type: "",
+                  reason: "",
+                  notes: "",
+                  reference_number: "",
+                })
+                setScannedProduct(null)
+                setManualQrInput("")
+                setShowMovementForm(true)
+              }} className="w-full sm:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
                 Manual Entry
               </Button>
@@ -653,7 +689,21 @@ export default function StockMovementsPage() {
         </div>
 
         {/* Movement Form Dialog */}
-        <Dialog open={showMovementForm} onOpenChange={setShowMovementForm}>
+        <Dialog open={showMovementForm} onOpenChange={(open) => {
+          setShowMovementForm(open)
+          if (!open) {
+            // Reset form when closing
+            setFormData({
+              product_id: "",
+              to_status: "",
+              movement_type: "",
+              reason: "",
+              notes: "",
+              reference_number: "",
+            })
+            setScannedProduct(null)
+          }
+        }}>
           <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Record Movement</DialogTitle>

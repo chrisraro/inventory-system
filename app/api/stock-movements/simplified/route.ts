@@ -71,9 +71,10 @@ export async function GET(request: NextRequest) {
       `)
       .order('created_at', { ascending: false })
 
-    // For non-admin users, filter by their own movements
+    // For non-admin users, show all movements (stockman can see all)
+    // Admins see all movements by default
     if (!isAdmin) {
-      query = query.eq('created_by', user.id)
+      // Stockman users can see all movements, so no filtering needed
     }
 
     // Filter by product if specified
@@ -132,33 +133,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Get current product to check its current status
-    // For admins, allow access to any product; for regular users, only their own products
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from('user_profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (profileError) {
-      console.error('Profile fetch error:', profileError)
-      return NextResponse.json({ error: 'Failed to fetch user profile' }, { status: 500 })
-    }
-
-    const isAdmin = profile?.role === 'admin'
-
-    let productQuery = supabaseAdmin
+    // Both admin and stockman can access any product
+    const { data: product, error: productError } = await supabaseAdmin
       .from('products_simplified')
       .select('id, status')
       .eq('id', movementData.product_id)
-
-    if (!isAdmin) {
-      productQuery = productQuery.eq('user_id', user.id)
-    }
-
-    const { data: product, error: productError } = await productQuery.single()
+      .single()
 
     if (productError || !product) {
-      return NextResponse.json({ error: 'Product not found or access denied' }, { status: 404 })
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 })
     }
 
     // Validate status transition

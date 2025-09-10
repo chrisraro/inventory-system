@@ -30,8 +30,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields: qr_code, weight_kg, unit_cost' }, { status: 400 })
     }
 
-    // Use the QR code directly as the product ID (no LPG- prefix)
-    const productId = productData.qr_code.toUpperCase()
+    // Use the QR code directly as the product ID (preserve exact case and special characters)
+    const productId = productData.qr_code
 
     // Check if product with this QR code already exists
     const { data: existingProduct } = await supabaseAdmin
