@@ -89,6 +89,9 @@ export default function StockMovementsPage() {
     reason: "",
     notes: "",
     reference_number: "",
+    weight_kg: "", // For new product creation
+    unit_cost: "", // For new product creation
+    supplier: "", // For new product creation
   })
 
   const [filters, setFilters] = useState({
@@ -284,15 +287,18 @@ export default function StockMovementsPage() {
           description: `Successfully scanned: ${normalizedQRData}`,
         })
       } else {
+        // Product not found - redirect to manual entry dialog
+        setFormData(prev => ({ 
+          ...prev, 
+          product_id: normalizedQRData // Pre-fill with the QR code
+        }))
+        setShowMovementForm(true)
+        setShowScanner(false)
+        stopCamera()
         toast({
           title: "Product Not Found",
-          description: "This QR code is not registered in the system",
-          variant: "destructive",
+          description: "This QR code is not registered. You can create a new product with this QR code.",
         })
-        // Restart scanning if product not found
-        if (!scanIntervalRef.current && cameraActive) {
-          startQRScanning()
-        }
       }
     } catch (error) {
       console.error("Error checking product:", error)
@@ -339,10 +345,16 @@ export default function StockMovementsPage() {
             description: `Successfully found: ${normalizedQR}`,
           })
         } else {
+          // Product not found - redirect to manual entry dialog
+          setFormData(prev => ({ 
+            ...prev, 
+            product_id: normalizedQR // Pre-fill with the QR code
+          }))
+          setShowMovementForm(true)
+          setManualQrInput("") // Clear the input field
           toast({
             title: "Product Not Found",
-            description: "This QR code is not registered in the system",
-            variant: "destructive",
+            description: "This QR code is not registered. You can create a new product with this QR code.",
           })
         }
       } catch (error) {
@@ -368,10 +380,70 @@ export default function StockMovementsPage() {
       return
     }
 
+    // If creating a new product, validate the additional fields
+    if (!scannedProduct) {
+      if (!formData.weight_kg || !formData.unit_cost) {
+        toast({
+          title: "Validation Error",
+          description: "Please fill in weight and unit cost for new products",
+          variant: "destructive",
+        })
+        return
+      }
+    }
+
     setIsSubmitting(true)
 
     try {
-      const response = await authenticatedPost('/api/stock-movements/simplified', formData)
+      // First, check if the product exists
+      const checkResponse = await fetch(`/api/products/check-qr?qr=${encodeURIComponent(formData.product_id)}`)
+      const checkData = await checkResponse.json()
+      
+      let productId = formData.product_id
+      
+      // If product doesn't exist, we need to create it first
+      if (!checkData.exists) {
+        // Show a toast indicating that we're creating the product
+        toast({
+          title: "Creating Product",
+          description: "Creating new product with the provided QR code...",
+        })
+        
+        // Prepare product creation data
+        const productCreationData = {
+          qr_code: formData.product_id,
+          weight_kg: parseFloat(formData.weight_kg),
+          unit_cost: parseFloat(formData.unit_cost),
+          supplier: formData.supplier || null,
+        }
+        
+        // Create the product
+        const createResponse = await authenticatedPost('/api/products/create', productCreationData)
+        
+        if (!createResponse.ok) {
+          const errorData = await createResponse.json()
+          throw new Error(errorData.error || 'Failed to create product')
+        }
+        
+        const createData = await createResponse.json()
+        productId = createData.product.id
+        
+        toast({
+          title: "Product Created",
+          description: "New product created successfully.",
+        })
+      } else {
+        // Product exists, use its ID
+        productId = checkData.product.id
+      }
+
+      // Proceed with creating the movement
+      const movementData = {
+        ...formData,
+        product_id: productId
+      }
+
+      const response = await authenticatedPost('/api/stock-movements/simplified', movementData)
 
       if (response.status === 503) {
         const errorData = await response.json()
@@ -381,6 +453,7 @@ export default function StockMovementsPage() {
             description: "Please run the database migration script in Supabase SQL Editor first.",
             variant: "destructive",
           })
+          setIsSubmitting(false)
           return
         }
       }
@@ -407,6 +480,7 @@ export default function StockMovementsPage() {
             variant: "destructive",
           })
         }
+        setIsSubmitting(false)
         return
       }
 
@@ -423,6 +497,9 @@ export default function StockMovementsPage() {
         reason: "",
         notes: "",
         reference_number: "",
+        weight_kg: "",
+        unit_cost: "",
+        supplier: "",
       })
       setScannedProduct(null)
       setShowMovementForm(false)
@@ -476,6 +553,9 @@ export default function StockMovementsPage() {
                   reason: "",
                   notes: "",
                   reference_number: "",
+                  weight_kg: "",
+                  unit_cost: "",
+                  supplier: "",
                 })
                 setScannedProduct(null)
                 setManualQrInput("")
@@ -751,13 +831,61 @@ export default function StockMovementsPage() {
                     <p>Status: {scannedProduct.status}</p>
                   </div>
                 )}
+                {!scannedProduct && formData.product_id && (
+                  <div className="mt-2 p-2 bg-blue-50 rounded text-sm">
+                    <p className="font-medium">New Product:</p>
+                    <p className="truncate">QR Code: {formData.product_id}</p>
+                    <p className="text-gray-600">This product will be created when you submit this form.</p>
+                  </div>
+                )}
               </div>
+              
+              {/* Fields for new product creation */}
+              {!scannedProduct && formData.product_id && (
+                <>
+                  <div>
+                    <Label>Weight (kg) *</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.weight_kg || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, weight_kg: e.target.value }))}
+                      placeholder="Enter weight in kg"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label>Unit Cost *</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.unit_cost || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, unit_cost: e.target.value }))}
+                      placeholder="Enter unit cost"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label>Supplier</Label>
+                    <Input
+                      value={formData.supplier || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, supplier: e.target.value }))}
+                      placeholder="Enter supplier name (optional)"
+                    />
+                  </div>
+                </>
+              )}
               
               <div>
                 <Label>New Status *</Label>
                 <Select 
                   value={formData.to_status} 
                   onValueChange={(value) => setFormData(prev => ({ ...prev, to_status: value }))}
+                  disabled={!formData.product_id}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select new status" />
@@ -777,6 +905,7 @@ export default function StockMovementsPage() {
                 <Select 
                   value={formData.movement_type} 
                   onValueChange={(value) => setFormData(prev => ({ ...prev, movement_type: value }))}
+                  disabled={!formData.product_id}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select movement type" />
@@ -797,6 +926,7 @@ export default function StockMovementsPage() {
                   value={formData.reason}
                   onChange={(e) => setFormData(prev => ({ ...prev, reason: e.target.value }))}
                   placeholder="e.g., Customer purchase, Routine maintenance"
+                  disabled={!formData.product_id}
                 />
               </div>
 
@@ -806,6 +936,7 @@ export default function StockMovementsPage() {
                   value={formData.reference_number}
                   onChange={(e) => setFormData(prev => ({ ...prev, reference_number: e.target.value }))}
                   placeholder="Invoice, receipt, or reference number"
+                  disabled={!formData.product_id}
                 />
               </div>
 
@@ -816,6 +947,7 @@ export default function StockMovementsPage() {
                   onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
                   placeholder="Additional notes..."
                   rows={3}
+                  disabled={!formData.product_id}
                 />
               </div>
 
@@ -831,7 +963,11 @@ export default function StockMovementsPage() {
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={isSubmitting} className="w-full">
+                <Button 
+                  type="submit" 
+                  disabled={isSubmitting || !formData.product_id || !formData.to_status || !formData.movement_type}
+                  className="w-full"
+                >
                   {isSubmitting ? "Recording..." : "Record Movement"}
                 </Button>
               </div>
