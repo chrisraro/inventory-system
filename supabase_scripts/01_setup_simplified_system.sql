@@ -3,8 +3,8 @@
 
 -- 1. Create simplified products table (individual cylinders)
 CREATE TABLE IF NOT EXISTS products_simplified (
-  id TEXT PRIMARY KEY,                    -- Raw QR code format
-  qr_code TEXT UNIQUE NOT NULL,          -- Raw QR code (duplicate of id for clarity)
+  id TEXT PRIMARY KEY,                    -- LPG-{QR_CODE} format
+  qr_code TEXT UNIQUE NOT NULL,          -- Raw QR code
   weight_kg DECIMAL(5,2) NOT NULL,       -- Cylinder weight
   unit_cost DECIMAL(10,2) NOT NULL DEFAULT 0,
   supplier TEXT,                         -- Optional supplier
@@ -107,16 +107,16 @@ CREATE TRIGGER update_products_simplified_updated_at
 CREATE OR REPLACE FUNCTION generate_cylinder_id(qr_data TEXT)
 RETURNS TEXT AS $$
 BEGIN
-  -- For simplified system, use raw QR code directly
-  RETURN qr_data;
+  -- Remove any existing LPG- prefix and add it back
+  RETURN 'LPG-' || REPLACE(UPPER(qr_data), 'LPG-', '');
 END;
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION extract_qr_code(cylinder_id TEXT)
 RETURNS TEXT AS $$
 BEGIN
-  -- For simplified system, cylinder ID is already the raw QR code
-  RETURN cylinder_id;
+  -- Remove LPG- prefix to get raw QR code
+  RETURN REPLACE(cylinder_id, 'LPG-', '');
 END;
 $$ LANGUAGE plpgsql;
 
@@ -125,7 +125,7 @@ RETURNS BOOLEAN AS $$
 BEGIN
   RETURN EXISTS(
     SELECT 1 FROM products_simplified 
-    WHERE qr_code = qr_data OR id = qr_data
+    WHERE qr_code = qr_data OR id = generate_cylinder_id(qr_data)
   );
 END;
 $$ LANGUAGE plpgsql;
@@ -175,5 +175,5 @@ BEGIN
     RAISE NOTICE 'Simplified QR-based cylinder management system created successfully!';
     RAISE NOTICE 'Tables created: products_simplified, stock_movements_simplified';
     RAISE NOTICE 'Helper functions and triggers are in place';
-    RAISE NOTICE 'Ready to use - each QR code = 1 unique cylinder (raw QR code format)';
+    RAISE NOTICE 'Ready to use - each QR code = 1 unique cylinder';
 END $$;

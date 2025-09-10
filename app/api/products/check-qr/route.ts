@@ -1,12 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { normalizeQRCode } from '@/lib/qr-utils'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
 // Create a Supabase client with service role for API routes
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
+
+// Helper function to authenticate request
+async function authenticateRequest(request: NextRequest) {
+  try {
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return { user: null, error: 'No valid token' }
+    }
+
+    const token = authHeader.substring(7)
+    
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
+    if (authError || !user) {
+      return { user: null, error: 'Invalid token' }
+    }
+    
+    return { user, error: null }
+  } catch (error) {
+    console.error('Authentication error:', error)
+    return { user: null, error: 'Authentication failed' }
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,32 +38,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'QR code is required' }, { status: 400 })
     }
 
-    // Get the authorization header
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized - No valid token' }, { status: 401 })
-    }
-
-    const token = authHeader.substring(7)
-    
-    // Verify the token and get user
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
+    // Authenticate request
+    const { user, error: authError } = await authenticateRequest(request)
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized - Invalid token' }, { status: 401 })
+      return NextResponse.json({ error: `Unauthorized - ${authError}` }, { status: 401 })
     }
 
-    // Normalize the QR code to extract the product identifier
-    const normalizedQRCode = normalizeQRCode(qrCode)
-    console.log("Original QR code:", qrCode)
-    console.log("Normalized QR code:", normalizedQRCode)
+    // Use the QR code directly (preserve exact case and special characters)
+    const productId = qrCode
 
-    // Check if product exists with this normalized QR code
+    // Check if product exists with this QR code
     // For stock movements, allow any authenticated user to access any product
-    // In simplified system, both id and qr_code fields contain the raw QR code
     const { data: product, error } = await supabaseAdmin
       .from('products_simplified')
       .select('*')
-      .eq('qr_code', normalizedQRCode) // Check by normalized qr_code field
+      .eq('qr_code', productId)
       .single()
 
     if (error && error.code !== 'PGRST116') {
@@ -60,8 +70,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       exists: !!product,
       product: product || null,
-      qrCode: normalizedQRCode,
-      originalQRCode: qrCode
+      qrCode,
+      productId
     })
 
   } catch (error) {

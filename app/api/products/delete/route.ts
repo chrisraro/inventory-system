@@ -7,7 +7,7 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 // Create a Supabase client with service role for API routes
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     // Get the authorization header
     const authHeader = request.headers.get('authorization')
@@ -37,47 +37,43 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
     const isAdmin = profile?.role === 'admin'
 
-    // Get the product from the simplified table
+    // Check if product exists and belongs to the user (or user is admin)
     let query = supabaseAdmin
       .from('products_simplified')
-      .select('*')
+      .select('id, user_id')
       .eq('id', params.id)
 
-    // For non-admin users, ensure they can only access their own products
+    // If user is not admin, ensure they can only access their own products
     if (!isAdmin) {
       query = query.eq('user_id', user.id)
     }
 
-    const { data: product, error } = await query.single()
+    const { data: product, error: productError } = await query.single()
 
-    if (error) {
-      console.error('Database error:', error)
-      if (error.code === 'PGRST116') {
-        return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+    if (productError) {
+      console.error('Database error:', productError)
+      // Check if it's a table not found error
+      if (productError.message?.includes('relation') && productError.message?.includes('does not exist')) {
+        return NextResponse.json({ 
+          error: 'Database tables not found. Please run the database migration script first.',
+          code: 'TABLES_NOT_FOUND'
+        }, { status: 503 })
       }
-      return NextResponse.json({ error: 'Failed to fetch product' }, { status: 500 })
-    }
-
-    if (!product) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 })
     }
 
-    // Map to maintain compatibility with existing UI
-    const mappedProduct = {
-      ...product,
-      // Map simplified fields to expected UI fields
-      name: `${product.weight_kg}kg LPG Cylinder`,
-      brand: 'Petrogreen', // Default brand
-      category: 'LPG',
-      quantity: product.status === 'available' ? 1 : 0, // Available = 1, others = 0
-      current_stock: product.status === 'available' ? 1 : 0,
-      price_per_unit: product.unit_cost,
-      unit_type: 'cylinder',
-      min_threshold: 0,
-      max_threshold: 1,
+    // Delete the product
+    const { error } = await supabaseAdmin
+      .from('products_simplified')
+      .delete()
+      .eq('id', params.id)
+
+    if (error) {
+      console.error('Database error:', error)
+      return NextResponse.json({ error: 'Failed to delete product' }, { status: 500 })
     }
 
-    return NextResponse.json({ product: mappedProduct })
+    return NextResponse.json({ message: 'Product deleted successfully' })
 
   } catch (error) {
     console.error('API error:', error)

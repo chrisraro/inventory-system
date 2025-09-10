@@ -11,7 +11,6 @@ import { Badge } from "@/components/ui/badge"
 import { Camera, CameraOff, Flashlight, FlashlightOff, Scan, X } from "lucide-react"
 import { toast } from "sonner"
 import jsQR from "jsqr"
-import { normalizeQRCode } from '@/lib/qr-utils'
 
 interface QRCodeScannerProps {
   onScan: (data: string, product?: any) => void
@@ -88,11 +87,9 @@ export function QRCodeScanner({ onScan, onClose }: QRCodeScannerProps) {
     if (streamRef.current && hasFlash) {
       const track = streamRef.current.getVideoTracks()[0]
       try {
-        // Type assertion to bypass TypeScript limitation
-        const constraints = {
-          advanced: [{ torch: !flashEnabled } as any],
-        }
-        await track.applyConstraints(constraints)
+        await track.applyConstraints({
+          advanced: [{ torch: !flashEnabled }],
+        })
         setFlashEnabled(!flashEnabled)
       } catch (error) {
         console.error("Error toggling flash:", error)
@@ -139,25 +136,20 @@ export function QRCodeScanner({ onScan, onClose }: QRCodeScannerProps) {
 
     setLastScanned(qrData)
 
-    // Normalize the QR data to extract the product identifier
-    const normalizedQRData = normalizeQRCode(qrData)
-    console.log("Original QR Data:", qrData)
-    console.log("Normalized QR Data:", normalizedQRData)
+    // No longer removing LPG- prefix, preserve exact case and special characters
+    const cleanQRData = qrData.trim()
 
-    toast.success(`QR Code scanned: ${normalizedQRData}`)
-    onScan(normalizedQRData)
+    // Instead of using undefined functions, we'll just return the QR data
+    toast.success(`QR Code scanned: ${cleanQRData}`)
+    onScan(cleanQRData)
   }
 
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!manualInput.trim()) return
 
-    // Normalize the manual input to extract the product identifier
-    const normalizedInput = normalizeQRCode(manualInput.trim())
-    console.log("Manual Input:", manualInput)
-    console.log("Normalized Manual Input:", normalizedInput)
-    
-    await handleQRDetected(normalizedInput)
+    // No longer removing LPG- prefix, preserve exact case and special characters
+    await handleQRDetected(manualInput.trim())
     setManualInput("")
   }
 

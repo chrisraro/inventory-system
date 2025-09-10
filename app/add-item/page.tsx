@@ -17,7 +17,6 @@ import ProtectedRoute from "@/components/auth/protected-route"
 import DashboardLayout from "@/components/layout/dashboard-layout"
 import { authenticatedPost } from "@/lib/api-client"
 import jsQR from "jsqr"
-import { normalizeQRCode } from '@/lib/qr-utils'
 
 export default function AddItemPage() {
   const router = useRouter()
@@ -45,10 +44,10 @@ export default function AddItemPage() {
   useEffect(() => {
     const qrParam = searchParams.get('qr')
     if (qrParam) {
-      // Normalize the QR code to extract the product identifier
-      const normalizedQR = normalizeQRCode(qrParam)
-      setQrCodeFromUrl(normalizedQR)
-      setManualQrInput(normalizedQR)
+      // Remove LPG- prefix if present
+      const cleanQR = qrParam.trim().toUpperCase().replace('LPG-', '')
+      setQrCodeFromUrl(cleanQR)
+      setManualQrInput(cleanQR)
     }
   }, [searchParams])
 
@@ -162,9 +161,8 @@ export default function AddItemPage() {
   const handleQRDetected = (qrData: string) => {
     console.log("QR Code detected:", qrData)
     
-    // Normalize the QR data to extract the product identifier
-    const normalizedQRData = normalizeQRCode(qrData)
-    console.log("Normalized QR Data:", normalizedQRData)
+    // Clean the QR data (preserve exact case and special characters)
+    const cleanQRData = qrData.trim()
     
     // Stop scanning after detection
     if (scanIntervalRef.current) {
@@ -173,27 +171,24 @@ export default function AddItemPage() {
       setIsScanning(false)
     }
     
-    // Set the normalized QR code
-    setQrCodeFromUrl(normalizedQRData)
-    setManualQrInput(normalizedQRData)
+    // Set the QR code
+    setQrCodeFromUrl(cleanQRData)
+    setManualQrInput(cleanQRData)
     setShowScanner(false)
     stopCamera()
     
     toast({
       title: "QR Code Scanned",
-      description: `Successfully scanned: ${normalizedQRData}`,
+      description: `Successfully scanned: ${cleanQRData}`,
     })
   }
 
   const handleManualQRSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (manualQrInput.trim()) {
-      // Normalize the manual input to extract the product identifier
-      const normalizedQR = normalizeQRCode(manualQrInput.trim())
-      console.log("Manual QR Input:", manualQrInput)
-      console.log("Normalized Manual QR:", normalizedQR)
-      setQrCodeFromUrl(normalizedQR)
-      setManualQrInput(normalizedQR)
+      // No longer removing LPG- prefix, preserve exact case and special characters
+      const cleanQR = manualQrInput.trim()
+      setQrCodeFromUrl(cleanQR)
     }
   }
 
@@ -206,74 +201,76 @@ export default function AddItemPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!qrCodeFromUrl) {
-      toast({
-        title: "Error",
-        description: "Please scan or enter a QR code",
-        variant: "destructive",
-      })
-      return
-    }
-
-    if (!formData.weight_kg || !formData.unit_cost) {
-      toast({
-        title: "Error",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      })
-      return
-    }
-
     setLoading(true)
 
     try {
-      // Use the QR code directly as the product identifier (normalized)
-      const productData = {
-        qr_code: qrCodeFromUrl, // This is already normalized
-        weight_kg: formData.weight_kg,
-        unit_cost: formData.unit_cost,
-        supplier: formData.supplier,
+      // Validate required fields - simplified validation
+      if (!qrCodeFromUrl) {
+        toast({
+          title: "Validation Error",
+          description: "QR code is required. Please scan a QR code first.",
+          variant: "destructive",
+        })
+        setLoading(false)
+        return
       }
 
+      if (!formData.weight_kg || !formData.unit_cost) {
+        toast({
+          title: "Validation Error",
+          description: "Please fill in cylinder weight and unit cost",
+          variant: "destructive",
+        })
+        setLoading(false)
+        return
+      }
+
+      // Create simplified product data
+      const productData = {
+        qr_code: qrCodeFromUrl,
+        weight_kg: parseFloat(formData.weight_kg),
+        unit_cost: parseFloat(formData.unit_cost),
+        supplier: formData.supplier || null,
+      }
+
+      // Create product using new QR-based system
       const response = await authenticatedPost('/api/products/create', productData)
 
-      if (response.status === 503) {
+      if (!response.ok) {
         const errorData = await response.json()
-        if (errorData.code === 'TABLES_NOT_FOUND') {
+        
+        // Handle specific error cases
+        if (response.status === 409) {
+          // Duplicate entry error
+          toast({
+            title: "Duplicate Product",
+            description: `A product with QR code "${qrCodeFromUrl}" already exists in your inventory.`,
+            variant: "destructive",
+          })
+        } else if (response.status === 503 && errorData.code === 'TABLES_NOT_FOUND') {
+          // Database setup required
           toast({
             title: "Database Setup Required",
             description: "Please run the database migration script in Supabase SQL Editor first.",
             variant: "destructive",
           })
-          return
-        }
-      }
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        // Handle specific error cases
-        if (response.status === 409) {
-          toast({
-            title: "Duplicate Product",
-            description: "A product with this QR code already exists",
-            variant: "destructive",
-          })
         } else {
-          toast({
-            title: "Error",
-            description: errorData.error || `Failed to add product (Status: ${response.status})`,
-            variant: "destructive",
-          })
+          // General error
+          throw new Error(errorData.error || 'Failed to create product')
         }
+        
+        setLoading(false)
         return
       }
 
+      const { product } = await response.json()
+
       toast({
         title: "Success",
-        description: "Product added successfully",
+        description: `${formData.weight_kg}kg Cylinder added successfully (ID: ${qrCodeFromUrl})`,
       })
 
-      // Reset form
+      // Reset form and navigate
       setQrCodeFromUrl(null)
       setManualQrInput("")
       setFormData({
@@ -281,11 +278,13 @@ export default function AddItemPage() {
         unit_cost: "",
         supplier: "",
       })
+      
+      router.push("/")
     } catch (error) {
       console.error("Error adding product:", error)
       toast({
         title: "Error",
-        description: "Failed to add product",
+        description: "Failed to add product. Please try again.",
         variant: "destructive",
       })
     } finally {
