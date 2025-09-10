@@ -38,15 +38,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     const isAdmin = profile?.role === 'admin'
 
     // Get the product from the simplified table
+    // For stock movements, allow any authenticated user to access any product
     let query = supabaseAdmin
       .from('products_simplified')
       .select('*')
       .eq('id', params.id)
 
-    // For non-admin users, ensure they can only access their own products
-    if (!isAdmin) {
-      query = query.eq('user_id', user.id)
-    }
+    // For non-admin users, no filtering is needed as per updated RLS policies
+    // Stockman users can see all products
 
     const { data: product, error } = await query.single()
 

@@ -21,6 +21,7 @@ import ProtectedRoute from "@/components/auth/protected-route"
 import DashboardLayout from "@/components/layout/dashboard-layout"
 import { useRouter } from "next/navigation"
 import jsQR from "jsqr"
+import { normalizeQRCode } from '@/lib/qr-utils'
 
 interface Product {
   id: string
@@ -100,6 +101,9 @@ export default function SimplifiedStockMovementsPage() {
     reason: "",
     notes: "",
     reference_number: "",
+    weight_kg: "", // For new product creation
+    unit_cost: "", // For new product creation
+    supplier: "", // For new product creation
   })
 
   const [filters, setFilters] = useState({
@@ -261,8 +265,9 @@ export default function SimplifiedStockMovementsPage() {
   const handleQRDetected = async (qrData: string) => {
     console.log("QR Code detected:", qrData)
     
-    // Clean the QR data (no longer removing LPG- prefix)
-    const cleanQRData = qrData.trim().toUpperCase()
+    // Normalize the QR data to extract the product identifier
+    const normalizedQRData = normalizeQRCode(qrData)
+    console.log("Normalized QR Data:", normalizedQRData)
     
     // Stop scanning after detection
     if (scanIntervalRef.current) {
@@ -275,9 +280,9 @@ export default function SimplifiedStockMovementsPage() {
     setShowScanner(false)
     stopCamera()
     
-    // Check if product exists
+    // Check if product exists using the normalized QR code
     try {
-      const response = await fetch(`/api/products/check-qr?qr=${encodeURIComponent(cleanQRData)}`)
+      const response = await fetch(`/api/products/check-qr?qr=${encodeURIComponent(normalizedQRData)}`)
       const data = await response.json()
       
       if (data.exists && data.product) {
@@ -286,13 +291,18 @@ export default function SimplifiedStockMovementsPage() {
         setShowMovementForm(true)
         toast({
           title: "Product Found",
-          description: `Successfully scanned: ${cleanQRData}`,
+          description: `Successfully scanned: ${normalizedQRData}`,
         })
       } else {
+        // Product not found - redirect to manual entry dialog
+        setFormData(prev => ({ 
+          ...prev, 
+          product_id: normalizedQRData // Pre-fill with the QR code
+        }))
+        setShowMovementForm(true)
         toast({
           title: "Product Not Found",
-          description: "This QR code is not registered in the system",
-          variant: "destructive",
+          description: "This QR code is not registered. You can create a new product with this QR code.",
         })
       }
     } catch (error) {
@@ -308,12 +318,14 @@ export default function SimplifiedStockMovementsPage() {
   const handleManualQRSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (manualQrInput.trim()) {
-      // No longer removing LPG- prefix
-      const cleanQR = manualQrInput.trim().toUpperCase()
+      // Normalize the manual input to extract the product identifier
+      const normalizedQR = normalizeQRCode(manualQrInput.trim())
+      console.log("Manual QR Input:", manualQrInput)
+      console.log("Normalized Manual QR:", normalizedQR)
       
-      // Check if product exists
+      // Check if product exists using the normalized QR code
       try {
-        const response = await fetch(`/api/products/check-qr?qr=${encodeURIComponent(cleanQR)}`)
+        const response = await fetch(`/api/products/check-qr?qr=${encodeURIComponent(normalizedQR)}`)
         const data = await response.json()
         
         if (data.exists && data.product) {
@@ -322,13 +334,18 @@ export default function SimplifiedStockMovementsPage() {
           setShowMovementForm(true)
           toast({
             title: "Product Found",
-            description: `Successfully found: ${cleanQR}`,
+            description: `Successfully found: ${normalizedQR}`,
           })
         } else {
+          // Product not found - redirect to manual entry dialog
+          setFormData(prev => ({ 
+            ...prev, 
+            product_id: normalizedQR // Pre-fill with the QR code
+          }))
+          setShowMovementForm(true)
           toast({
             title: "Product Not Found",
-            description: "This QR code is not registered in the system",
-            variant: "destructive",
+            description: "This QR code is not registered. You can create a new product with this QR code.",
           })
         }
       } catch (error) {
@@ -354,15 +371,81 @@ export default function SimplifiedStockMovementsPage() {
       return
     }
 
+    // If creating a new product, validate the additional fields
+    if (!scannedProduct) {
+      if (!formData.weight_kg || !formData.unit_cost) {
+        toast({
+          title: "Validation Error",
+          description: "Please fill in weight and unit cost for new products",
+          variant: "destructive",
+        })
+        return
+      }
+    }
+
     setIsSubmitting(true)
 
     try {
+      // First, check if the product exists
+      const checkResponse = await fetch(`/api/products/check-qr?qr=${encodeURIComponent(formData.product_id)}`)
+      const checkData = await checkResponse.json()
+      
+      let productId = formData.product_id
+      
+      // If product doesn't exist, we need to create it first
+      if (!checkData.exists) {
+        // Show a toast indicating that we're creating the product
+        toast({
+          title: "Creating Product",
+          description: "Creating new product with the provided QR code...",
+        })
+        
+        // Prepare product creation data
+        const productCreationData = {
+          qr_code: formData.product_id,
+          weight_kg: parseFloat(formData.weight_kg),
+          unit_cost: parseFloat(formData.unit_cost),
+          supplier: formData.supplier || null,
+        }
+        
+        // Create the product
+        const createResponse = await fetch('/api/products/create', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(productCreationData),
+        })
+        
+        if (!createResponse.ok) {
+          const errorData = await createResponse.json()
+          throw new Error(errorData.error || 'Failed to create product')
+        }
+        
+        const createData = await createResponse.json()
+        productId = createData.product.id
+        
+        toast({
+          title: "Product Created",
+          description: "New product created successfully.",
+        })
+      } else {
+        // Product exists, use its ID
+        productId = checkData.product.id
+      }
+
+      // Proceed with creating the movement
+      const movementData = {
+        ...formData,
+        product_id: productId
+      }
+
       const response = await fetch('/api/stock-movements/simplified', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(movementData),
       })
 
       if (!response.ok) {
@@ -383,6 +466,9 @@ export default function SimplifiedStockMovementsPage() {
         reason: "",
         notes: "",
         reference_number: "",
+        weight_kg: "",
+        unit_cost: "",
+        supplier: "",
       })
       setScannedProduct(null)
       setShowMovementForm(false)
@@ -430,7 +516,23 @@ export default function SimplifiedStockMovementsPage() {
                 <Scan className="h-4 w-4 mr-2" />
                 {showScanner ? "Close Scanner" : "Scan QR Code"}
               </Button>
-              <Button variant="outline" onClick={() => setShowMovementForm(true)}>
+              <Button variant="outline" onClick={() => {
+                // Reset form when opening manual entry
+                setFormData({
+                  product_id: "",
+                  to_status: "",
+                  movement_type: "",
+                  reason: "",
+                  notes: "",
+                  reference_number: "",
+                  weight_kg: "",
+                  unit_cost: "",
+                  supplier: "",
+                })
+                setScannedProduct(null)
+                setManualQrInput("")
+                setShowMovementForm(true)
+              }}>
                 <Plus className="h-4 w-4 mr-2" />
                 Manual Entry
               </Button>
@@ -692,18 +794,66 @@ export default function SimplifiedStockMovementsPage() {
                 {scannedProduct && (
                   <div className="mt-2 p-2 bg-green-50 rounded text-sm">
                     <p className="font-medium">Scanned Product:</p>
-                    <p>ID: {scannedProduct.id}</p>
+                    <p className="truncate">ID: {scannedProduct.id}</p>
                     <p>Weight: {scannedProduct.weight_kg}kg</p>
                     <p>Status: {scannedProduct.status}</p>
                   </div>
                 )}
+                {!scannedProduct && formData.product_id && (
+                  <div className="mt-2 p-2 bg-blue-50 rounded text-sm">
+                    <p className="font-medium">New Product:</p>
+                    <p className="truncate">QR Code: {formData.product_id}</p>
+                    <p className="text-gray-600">This product will be created when you submit this form.</p>
+                  </div>
+                )}
               </div>
+              
+              {/* Fields for new product creation */}
+              {!scannedProduct && formData.product_id && (
+                <>
+                  <div>
+                    <Label>Weight (kg) *</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.weight_kg || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, weight_kg: e.target.value }))}
+                      placeholder="Enter weight in kg"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label>Unit Cost *</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.unit_cost || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, unit_cost: e.target.value }))}
+                      placeholder="Enter unit cost"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label>Supplier</Label>
+                    <Input
+                      value={formData.supplier || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, supplier: e.target.value }))}
+                      placeholder="Enter supplier name (optional)"
+                    />
+                  </div>
+                </>
+              )}
               
               <div>
                 <Label>New Status *</Label>
                 <Select 
                   value={formData.to_status} 
                   onValueChange={(value) => setFormData(prev => ({ ...prev, to_status: value }))}
+                  disabled={!formData.product_id}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select new status" />
@@ -723,6 +873,7 @@ export default function SimplifiedStockMovementsPage() {
                 <Select 
                   value={formData.movement_type} 
                   onValueChange={(value) => setFormData(prev => ({ ...prev, movement_type: value }))}
+                  disabled={!formData.product_id}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select movement type" />
@@ -743,6 +894,7 @@ export default function SimplifiedStockMovementsPage() {
                   value={formData.reason}
                   onChange={(e) => setFormData(prev => ({ ...prev, reason: e.target.value }))}
                   placeholder="e.g., Customer purchase, Routine maintenance"
+                  disabled={!formData.product_id}
                 />
               </div>
 
@@ -752,6 +904,7 @@ export default function SimplifiedStockMovementsPage() {
                   value={formData.reference_number}
                   onChange={(e) => setFormData(prev => ({ ...prev, reference_number: e.target.value }))}
                   placeholder="Invoice, receipt, or reference number"
+                  disabled={!formData.product_id}
                 />
               </div>
 
@@ -762,10 +915,11 @@ export default function SimplifiedStockMovementsPage() {
                   onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
                   placeholder="Additional notes..."
                   rows={3}
+                  disabled={!formData.product_id}
                 />
               </div>
 
-              <div className="flex space-x-2 pt-4">
+              <div className="flex gap-2 pt-4">
                 <Button 
                   type="button" 
                   variant="outline" 
@@ -773,11 +927,13 @@ export default function SimplifiedStockMovementsPage() {
                     setShowMovementForm(false)
                     setScannedProduct(null)
                   }}
-                  className="flex-1"
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={isSubmitting} className="flex-1">
+                <Button 
+                  type="submit" 
+                  disabled={isSubmitting || !formData.product_id || !formData.to_status || !formData.movement_type}
+                >
                   {isSubmitting ? "Recording..." : "Record Movement"}
                 </Button>
               </div>

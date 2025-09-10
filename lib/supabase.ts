@@ -118,14 +118,16 @@ export const getProducts = async () => {
     return { data: null, error: profileError }
   }
 
-  let query = supabase.from("products_simplified").select("*").order("created_at", { ascending: false })
+  // Use admin client if available for cross-user visibility
+  const client = supabaseAdmin || supabase;
   
-  // If user is not admin, filter by their own products only
-  // Stockman users can see all products, not just their own
+  let query = client.from("products_simplified").select("*").order("created_at", { ascending: false })
+  
+  // If user is not admin and we're using the regular client, filter by user
+  // Stockman users can see all products when using admin client
   const isAdmin = userProfile?.role === 'admin'
-  if (!isAdmin) {
-    // Stockman users can see all products, so no filtering needed
-    // Only admins have special access rules
+  if (!isAdmin && !supabaseAdmin) {
+    query = query.eq('user_id', userProfile?.id)
   }
 
   const { data, error } = await query
@@ -150,14 +152,16 @@ export const getProduct = async (id: string) => {
     return { data: null, error: profileError }
   }
 
-  let query = supabase.from("products_simplified").select("*").eq("id", id)
+  // Use admin client if available for cross-user visibility
+  const client = supabaseAdmin || supabase;
   
-  // If user is not admin, ensure they can only access their own products
-  // Stockman users can see all products, not just their own
+  let query = client.from("products_simplified").select("*").eq("id", id)
+  
+  // If user is not admin and we're using the regular client, filter by user
+  // Stockman users can see all products when using admin client
   const isAdmin = userProfile?.role === 'admin'
-  if (!isAdmin) {
-    // Stockman users can see all products, so no filtering needed
-    // Only admins have special access rules
+  if (!isAdmin && !supabaseAdmin) {
+    query = query.eq('user_id', userProfile?.id)
   }
 
   const { data, error } = await query.single()
@@ -277,7 +281,10 @@ export const getStockMovements = async (productId?: string) => {
     return { data: null, error: profileError }
   }
 
-  let query = supabase
+  // Use admin client if available for cross-user visibility
+  const client = supabaseAdmin || supabase;
+  
+  let query = client
     .from("stock_movements_simplified")
     .select(`
       *,
@@ -296,12 +303,11 @@ export const getStockMovements = async (productId?: string) => {
     query = query.eq("product_id", productId)
   }
 
-  // If user is not admin, filter by their own movements only
-  // Stockman users can see all movements
+  // If user is not admin and we're using the regular client, filter by user
+  // Stockman users can see all movements when using admin client
   const isAdmin = userProfile?.role === 'admin'
-  if (!isAdmin) {
-    // Stockman users can see all movements, so no filtering needed
-    // Only admins have special access rules
+  if (!isAdmin && !supabaseAdmin) {
+    query = query.eq('created_by', userProfile?.id)
   }
 
   const { data, error } = await query
@@ -359,16 +365,37 @@ export const testConnection = async (): Promise<{ success: boolean; message: str
 // Analytics functions
 export const getInventoryAnalytics = async () => {
   try {
-    const { data: products, error: productsError } = await supabase.from("products_simplified").select("*")
-
-    if (productsError) throw productsError
-
-    const { data: movements, error: movementsError } = await supabase
+    // First get the current user's profile to check their role
+    const { data: userProfile, error: profileError } = await getCurrentUserProfile()
+    
+    if (profileError) {
+      console.error("Error fetching user profile:", profileError)
+      throw profileError
+    }
+    
+    // Use admin client if available for cross-user visibility
+    const client = supabaseAdmin || supabase;
+    
+    // Get products based on user role
+    let productsQuery = client.from("products_simplified").select("*")
+    let movementsQuery = client
       .from("stock_movements_simplified")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(5)
+    
+    // If user is not admin and we're using the regular client, filter by user
+    // Stockman users can see all data when using admin client
+    const isAdmin = userProfile?.role === 'admin'
+    if (!isAdmin && !supabaseAdmin) {
+      productsQuery = productsQuery.eq('user_id', userProfile?.id)
+      movementsQuery = movementsQuery.eq('created_by', userProfile?.id)
+    }
+    
+    const { data: products, error: productsError } = await productsQuery
+    if (productsError) throw productsError
 
+    const { data: movements, error: movementsError } = await movementsQuery
     if (movementsError) throw movementsError
 
     const totalProducts = products?.length || 0

@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@supabase/supabase-js'
 import { normalizeQRCode } from '@/lib/qr-utils'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+
+// Create a Supabase client with service role for API routes
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,10 +17,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'QR code is required' }, { status: 400 })
     }
 
-    // Check if user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // Get the authorization header
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized - No valid token' }, { status: 401 })
+    }
+
+    const token = authHeader.substring(7)
+    
+    // Verify the token and get user
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'Unauthorized - Invalid token' }, { status: 401 })
     }
 
     // Normalize the QR code to extract the product identifier
@@ -25,7 +39,7 @@ export async function GET(request: NextRequest) {
     // Check if product exists with this normalized QR code
     // For stock movements, allow any authenticated user to access any product
     // In simplified system, both id and qr_code fields contain the raw QR code
-    const { data: product, error } = await supabase
+    const { data: product, error } = await supabaseAdmin
       .from('products_simplified')
       .select('*')
       .eq('qr_code', normalizedQRCode) // Check by normalized qr_code field
