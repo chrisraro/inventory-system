@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { normalizeQRCode } from '@/lib/qr-utils'
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,20 +17,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Use the QR code directly (preserve exact case and special characters)
-    const productId = qrCode.trim()
-    console.log("Checking QR code:", productId)
+    // Normalize the QR code to extract the product identifier
+    const normalizedQRCode = normalizeQRCode(qrCode)
+    console.log("Original QR code:", qrCode)
+    console.log("Normalized QR code:", normalizedQRCode)
 
-    // Check if product exists with this QR code
+    // Check if product exists with this normalized QR code
     // For stock movements, allow any authenticated user to access any product
     // In simplified system, both id and qr_code fields contain the raw QR code
     const { data: product, error } = await supabase
       .from('products_simplified')
       .select('*')
-      .eq('qr_code', productId) // Check by qr_code field
+      .eq('qr_code', normalizedQRCode) // Check by normalized qr_code field
       .single()
-
-    console.log("Product lookup result:", { product, error })
 
     if (error && error.code !== 'PGRST116') {
       console.error('Database error:', error)
@@ -46,8 +46,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       exists: !!product,
       product: product || null,
-      qrCode: productId,
-      productId
+      qrCode: normalizedQRCode,
+      originalQRCode: qrCode
     })
 
   } catch (error) {

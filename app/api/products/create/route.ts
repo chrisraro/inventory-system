@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { normalizeQRCode } from '@/lib/qr-utils'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -30,15 +31,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields: qr_code, weight_kg, unit_cost' }, { status: 400 })
     }
 
-    // Use the QR code directly as the product ID (preserve exact case and special characters)
-    // In simplified system, both id and qr_code fields contain the raw QR code
-    const productId = productData.qr_code
+    // Normalize the QR code to extract the product identifier
+    const normalizedQRCode = normalizeQRCode(productData.qr_code)
+    console.log("Original QR code:", productData.qr_code)
+    console.log("Normalized QR code:", normalizedQRCode)
 
-    // Check if product with this QR code already exists
+    // Check if product with this normalized QR code already exists
     const { data: existingProduct } = await supabaseAdmin
       .from('products_simplified')
       .select('id')
-      .eq('qr_code', productId)
+      .eq('qr_code', normalizedQRCode)
       .eq('user_id', user.id)
       .maybeSingle()
 
@@ -46,10 +48,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Product with this QR code already exists' }, { status: 409 })
     }
 
-    // Create simplified product data
+    // Create simplified product data using the normalized QR code
     const simplifiedProduct = {
-      id: productId, // Raw QR code as ID
-      qr_code: productId, // Raw QR code also in qr_code field for clarity
+      id: normalizedQRCode, // Normalized QR code as ID
+      qr_code: normalizedQRCode, // Normalized QR code also in qr_code field for clarity
       weight_kg: parseFloat(productData.weight_kg),
       unit_cost: parseFloat(productData.unit_cost),
       supplier: productData.supplier || null,
@@ -76,7 +78,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create product' }, { status: 500 })
     }
 
-    console.log("Product created with raw QR code:", product)
+    console.log("Product created with normalized QR code:", product)
     return NextResponse.json({ product })
 
   } catch (error) {

@@ -21,6 +21,7 @@ import DashboardLayout from "@/components/layout/dashboard-layout"
 import { useRouter } from "next/navigation"
 import { authenticatedGet, authenticatedPost } from "@/lib/api-client"
 import jsQR from "jsqr"
+import { normalizeQRCode } from '@/lib/qr-utils'
 
 interface Product {
   id: string
@@ -247,8 +248,9 @@ export default function StockMovementsPage() {
   const handleQRDetected = async (qrData: string) => {
     console.log("QR Code detected:", qrData)
     
-    // Clean the QR data (preserve exact case and special characters)
-    const cleanQRData = qrData.trim()
+    // Normalize the QR data to extract the product identifier
+    const normalizedQRData = normalizeQRCode(qrData)
+    console.log("Normalized QR Data:", normalizedQRData)
     
     // Stop scanning after detection
     if (scanIntervalRef.current) {
@@ -257,9 +259,9 @@ export default function StockMovementsPage() {
       setIsScanning(false)
     }
     
-    // Check if product exists
+    // Check if product exists using the normalized QR code
     try {
-      const response = await fetch(`/api/products/check-qr?qr=${encodeURIComponent(cleanQRData)}`)
+      const response = await fetch(`/api/products/check-qr?qr=${encodeURIComponent(normalizedQRData)}`)
       const data = await response.json()
       
       if (data.exists && data.product) {
@@ -279,7 +281,7 @@ export default function StockMovementsPage() {
         stopCamera()
         toast({
           title: "Product Found",
-          description: `Successfully scanned: ${cleanQRData}`,
+          description: `Successfully scanned: ${normalizedQRData}`,
         })
       } else {
         toast({
@@ -309,12 +311,14 @@ export default function StockMovementsPage() {
   const handleManualQRSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (manualQrInput.trim()) {
-      // No longer removing LPG- prefix, preserve exact case and special characters
-      const cleanQR = manualQrInput.trim()
+      // Normalize the manual input to extract the product identifier
+      const normalizedQR = normalizeQRCode(manualQrInput.trim())
+      console.log("Manual QR Input:", manualQrInput)
+      console.log("Normalized Manual QR:", normalizedQR)
       
-      // Check if product exists
+      // Check if product exists using the normalized QR code
       try {
-        const response = await fetch(`/api/products/check-qr?qr=${encodeURIComponent(cleanQR)}`)
+        const response = await fetch(`/api/products/check-qr?qr=${encodeURIComponent(normalizedQR)}`)
         const data = await response.json()
         
         if (data.exists && data.product) {
@@ -332,7 +336,7 @@ export default function StockMovementsPage() {
           setManualQrInput("") // Clear the input field
           toast({
             title: "Product Found",
-            description: `Successfully found: ${cleanQR}`,
+            description: `Successfully found: ${normalizedQR}`,
           })
         } else {
           toast({
